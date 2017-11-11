@@ -35,7 +35,7 @@ int main()
     //preparation of the socket address
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(10001);
+    servaddr.sin_port = htons(10003);
 	
     //bind the socket
     if(bind (listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0)

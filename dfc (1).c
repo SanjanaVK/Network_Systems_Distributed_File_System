@@ -16,7 +16,7 @@
 
 #define MAXBUF 4096
 #define CONF_FILENAME "dfc.conf"
-#define FILENAME "foo2.png"
+#define FILENAME "foo3"
 
 struct config //ws.conf parsed map
 {
@@ -27,27 +27,7 @@ struct config //ws.conf parsed map
    char* password[100];
    int number_of_users;
    int number_of_servers;
-};
-
-struct servers
-{
-    int first_file;
-    int second_file;
-};
-struct servers serverstruct[4];
-
-/*This function provides data encryption and decryption*/
-char * encryptdecrypt(char * message, int length)
-{
-    int i;
-    char key = 'S';
-    for(i=0; i < length; i++)
-    {
-        message[i] ^= key; //Bitwise XOR with character 'S'
-    }
-    return message;
-}
- 
+}; 
 struct config get_conf_parameters(char *filename) //parse configuration file to structures
 {
     struct config configstruct;
@@ -183,21 +163,18 @@ struct config get_conf_parameters(char *filename) //parse configuration file to 
 }
 
 /*This function calculates the filesize and calculates number of packets*/
-unsigned long calculate_filesize(char * filename)
+unsigned long calculate_filesize(FILE *temp_fp)
 {
-    FILE *temp_fp = fopen(filename, "r");
-    if (temp_fp == NULL)
-    {
-        perror("File not opened : ");
-        return -1;
-    }
     fseek(temp_fp, 0L, SEEK_END);
     unsigned long temp_filesize = ftell(temp_fp); //get file size
     printf("File size of the file to be transmitted is %ld\n", temp_filesize);
-    fseek(temp_fp, 0L, SEEK_SET);  
-    fclose(temp_fp);
+    fseek(temp_fp, 0L, SEEK_SET);
+    int temp_bufsize = MAXBUF;
+    unsigned int number_of_packets = (temp_filesize/(temp_bufsize));//get number of packets
+    if ((temp_filesize % MAXBUF) != 0);
+        number_of_packets ++;  
     return temp_filesize; //return number of packets
-   
+    
 }
 
 int check_md5sum(char * filename)
@@ -205,6 +182,32 @@ int check_md5sum(char * filename)
     int fd, nbytes;
     int result = 0;
     char buffer[MAXBUF];
+    FILE *temp_fp;
+    unsigned long size;
+    temp_fp = fopen(filename, "r");
+    if (temp_fp == NULL)
+    {
+        perror("File not opened : ");
+        return -1;
+    }
+    size = calculate_filesize(temp_fp) ;
+    fclose(temp_fp);
+    printf("File size %ld\n", size);
+    int temp_size, i;
+    int size_array[4];
+    int rem_size = size % 4;
+    printf("rem size is %d\n", rem_size);
+    temp_size= size/4;
+    for(i= 0 ; i< 4; i++)
+    {
+        size_array[i] = temp_size;
+    }
+    size_array[3] = temp_size + rem_size;
+    printf("new array size %d\n", size_array[3]);
+    for(i=0; i<4; i++)
+    {
+        printf("filesize %d is %d\n", i, size_array[i]);
+    } 
     
     fd = open(filename , O_RDONLY); //file open with read only option
     if(fd == -1)
@@ -233,23 +236,6 @@ int check_md5sum(char * filename)
         printf("%02x", out[n]);
     printf("\n");
     result = (out[MD5_DIGEST_LENGTH - 1] % 4);
-    return result;
-}
-
-void get_file_server_map(int md5_mod)
-{
-    //serverstruct[4] = malloc(sizeof((struct servers) * 4));
-    if(md5_mod == 0)
-    {
-        serverstruct[1].first_file = 1;
-        serverstruct[1].second_file = 2;
-        serverstruct[2].first_file = 2;
-        serverstruct[2].second_file = 3;
-        serverstruct[3].first_file = 3;
-        serverstruct[3].second_file = 4;
-        serverstruct[4].first_file = 4;
-        serverstruct[4].second_file = 1;
-    }            
 }
 
 int main(int argc , char *argv[])
@@ -257,48 +243,17 @@ int main(int argc , char *argv[])
     int sock[4];
     struct config configstruct;
     struct sockaddr_in server;
-    char *message[4] , server_reply[2000];
+    char message[1000] , server_reply[2000];
     int md5_mod;
     int i = 0;
     int port_int[4];
-    
     configstruct = get_conf_parameters(CONF_FILENAME);
     md5_mod = check_md5sum(FILENAME);
-    
     printf("md5 mod result is %d\n", md5_mod);
-    get_file_server_map(md5_mod);
-    unsigned long filesize = calculate_filesize(FILENAME);
-    printf("File size %ld\n", filesize);
-    int rem_size = filesize % 4;
-    int size_array[4];
-    int fd;
-    printf("rem size is %d\n", rem_size);
-    unsigned long temp_size= filesize/4;
-    for(i= 0 ; i< 4; i++)
-    {
-        size_array[i] = temp_size;
-    }
-    size_array[3] = temp_size + rem_size;
-    printf("new array size %d\n", size_array[3]);
-    for(i=0; i<4; i++)
-    {
-        printf("filesize %d is %d\n", i, size_array[i]);
-    } 
-    fd = open(FILENAME , O_RDONLY); //file open with read only option
-    if(fd == -1)
-    {
-        perror("File not opened: ");
-        return -1;
-    }
-    int fd_write;
-    long nbytes;
-    fd_write = open( "result.png", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    i = 0;
-    
     //Create socket
     for ( i = 0 ; i<4; i++)
     {
-    /*sock[i] = socket(AF_INET , SOCK_STREAM , 0);
+    sock[i] = socket(AF_INET , SOCK_STREAM , 0);
     if (sock[i] == -1)
     {
         printf("Could not create socket");
@@ -315,31 +270,23 @@ int main(int argc , char *argv[])
     {
         perror("connect failed. Error");
         return 1;
-    }*/
-    message[i] = malloc(size_array[3] * sizeof(char));
+    }
      
     puts("Connected\n");
     }
-
      
     //keep communicating with server
-    printf("Sending files : ");
-    i = 0; 
-    while(nbytes = read(fd, message[i], size_array[i])) //read MAXBUFSIZE from the file
+    while(1)
     {
-        
-    	char * encrypted = encryptdecrypt(message[i], nbytes); //encrypt file data packet
-                 
-        char * decrypted = encryptdecrypt(encrypted, nbytes); //decrypt file packet
-       
-        write(fd_write, decrypted, nbytes);
+        printf("Enter message : ");
+        scanf("%s" , message);
          
         //Send some data
-        /*if( send(sock[i] , message[i] , strlen(message[i]) , 0) < 0)
+        if( send(sock , message , strlen(message) , 0) < 0)
         {
             puts("Send failed");
             return 1;
-        }*/
+        }
          
         //Receive a reply from the server
         /*if( recv(sock , server_reply , 2000 , 0) < 0)
@@ -350,7 +297,6 @@ int main(int argc , char *argv[])
          
         puts("Server reply :");
         puts(server_reply);*/
-        i++;
     }
      
     close(sock);

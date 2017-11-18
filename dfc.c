@@ -42,6 +42,8 @@ struct packet_t{
     char command[50];
     char filename[50];
     int valid;
+    char username[100];
+    char password[100];
 };
 struct packet_t sender_packet, receiver_packet;
 struct servers
@@ -155,7 +157,8 @@ struct config get_conf_parameters(char *filename) //parse configuration file to 
                         if(count == 1)
                         {
                             configstruct.username[user_index] = malloc(50 * sizeof(char));
-                            strcpy(configstruct.username[user_index] , token);
+                            char * tok = strtok(token, "\n ");
+                            strcpy(configstruct.username[user_index] , tok);
                         }
                         token = strtok(NULL, ":");
                         count++;                          
@@ -171,6 +174,7 @@ struct config get_conf_parameters(char *filename) //parse configuration file to 
                                if(count == 1)
                                {
                                    configstruct.password[user_index] = malloc(50 * sizeof(char));
+                                   char * tok = strtok(token, "\n ");
                                    strcpy(configstruct.password[user_index], token);
                                }
                                token = strtok(NULL, ":");
@@ -278,7 +282,7 @@ void get_file_server_map(int md5_mod)
     }            
 }
 
-int put_file(char * filename, struct sockaddr_in server)
+int put_file(char * filename, struct sockaddr_in server, struct config *configstruct)
 {
     char *message[4];
     unsigned long filesize = calculate_filesize(filename);
@@ -311,10 +315,11 @@ int put_file(char * filename, struct sockaddr_in server)
     //fd_write = open( "result.png", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
     i = 0;
     //keep communicating with server
-    printf("Sending files : ");
+    printf("Sending files : \n");
     i = 0; 
     char buf[100];
     unsigned int remote_length = sizeof(server);
+   
     message[0] = calloc(size_array[3] , sizeof(char));
     message[1] = calloc(size_array[3] , sizeof(char));
     message[2] = calloc(size_array[3] , sizeof(char));
@@ -324,6 +329,7 @@ int put_file(char * filename, struct sockaddr_in server)
         printf("%s\n",message[i]);
         i++;
     }
+    
     for(i = 0; i< 1; i++)
     {
     	//char * encrypted = encryptdecrypt(message[i], nbytes); //encrypt file data packet
@@ -334,10 +340,12 @@ int put_file(char * filename, struct sockaddr_in server)
          
         //Send some data
        
-       	 //printf("\nsending first chunk\n %s\n", message[serverstruct[i].first_file - 1]);
+       	 printf("\nsending first chunk\n %s\n", message[serverstruct[i].first_file - 1]);
          
          sender_packet = EmptyStruct;
-
+         strcpy(sender_packet.username, configstruct->username[0]);
+         strcpy(sender_packet.password, configstruct->password[0]);
+   
 	 sender_packet.first_chunk_number = serverstruct[i].first_file;
          sender_packet.first_datasize = size_array[serverstruct[i].first_file - 1];
          
@@ -480,7 +488,7 @@ int main(int argc , char *argv[])
  
             printf("Sending file %s to the server.....\n", sender_packet.filename);
             sender_packet.valid = 1;
-            put_file(sender_packet.filename, server);// Put file into server only if file exists in client side
+            put_file(sender_packet.filename, server, &configstruct);// Put file into server only if file exists in client side
               //  continue;
         }
        

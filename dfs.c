@@ -11,9 +11,9 @@
 #include <string.h>
 #include <sys/sendfile.h>
 
-#define MAXLINE 4096 /*max text line length*/
+#define MAXLINE 10 * 4096 /*max text line length*/
 #define LISTENQ 8 /*maximum number of client connections*/
-#define MAXBUF 4096
+#define MAXBUF 10 * 4096
 #define FILENAME "dfs.conf" /*Configuration file*/
 
 struct packet_t{
@@ -114,13 +114,10 @@ int check_cred_match(struct config configstruct, struct packet_t receiver_packet
     printf("password : %s\n", receiver_packet.password);
     for(i = 0; i< configstruct.number_of_users; i++)
     {
-        printf("hi 1\n");
         if(strcmp(receiver_packet.username, configstruct.username[i]) == 0)
         {
-            printf("hi 2\n");
             if(strcmp(receiver_packet.password, configstruct.password[i]) == 0)
             {
-                printf("hi 3\n");
                 return 1;
             }
          }
@@ -128,9 +125,9 @@ int check_cred_match(struct config configstruct, struct packet_t receiver_packet
      return 0;
 }
 
-void check_and_create_directory(char * directory, struct packet_t receiver_packet)
+void check_and_create_directory(char * directory, struct packet_t receiver_packet, char * fullpath)
 {
-    char fullpath[100];
+
     strcpy(fullpath, ".");
     strcat(fullpath, directory);
     strcat(fullpath,"/");
@@ -225,27 +222,48 @@ int main(int argc , char *argv[])
                 }
 
                 char fullpath[100] ;
-                check_and_create_directory(directory, receiver_packet);
-                //printf("full path is %s\n", fullpath);
+                printf("filename is %s\n", receiver_packet.filename);
+                bzero(fullpath, sizeof(fullpath));
+                check_and_create_directory(directory, receiver_packet, fullpath);
+                printf("full path is %s\n", fullpath);
                 
                 int fd_write1, fd_write2;
                 char filename1[100];
                 char filename2[100];
-                strcpy(filename1, receiver_packet.filename);
+                strcpy(filename1, fullpath);
+                strcat(filename1, receiver_packet.filename);
                 strcat(filename1, ".");
-                //strcat(filename1, receiver_packet.first_chunk_number);
-                 
+                char chunk_string[10];
+                bzero(chunk_string, sizeof(chunk_string));
+                sprintf( chunk_string, "%d", receiver_packet.first_chunk_number);
+                strcat(filename1, chunk_string);               
+                printf("filename is %s\n", filename1);
+
+                strcpy(filename2, fullpath);
+                strcat(filename2, receiver_packet.filename);
+                strcat(filename2, ".");
+                bzero(chunk_string, sizeof(chunk_string));
+                sprintf( chunk_string, "%d", receiver_packet.second_chunk_number);
+                strcat(filename2, chunk_string);
+                
+                printf("filename is %s\n", filename2);
+
                 fd_write1 = open( filename1, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+                fd_write2 = open( filename2, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+
                 printf("Credentials match\n");    
                 printf("Size of receiver_packet is %d\n", sizeof(receiver_packet));
                 printf("%s","String received from client:\n"); //get request from the client
                 printf("1. chunk number is %d\n",receiver_packet.first_chunk_number);
                 strcpy(first_chunk, receiver_packet.first_data);
                 puts(receiver_packet.first_data);
+                write(fd_write1, receiver_packet.first_data , receiver_packet.first_datasize);
+
                 printf("2. chunk number is %d\n",receiver_packet.second_chunk_number);
                 strcpy(second_chunk, receiver_packet.second_data);
                 puts(receiver_packet.second_data);
-                puts(buf);
+                write(fd_write2, receiver_packet.second_data , receiver_packet.second_datasize);
+                
                 
                /* if(receiver_packet.chunk_number == 2)
                 {

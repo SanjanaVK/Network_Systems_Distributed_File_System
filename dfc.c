@@ -14,7 +14,7 @@
 #include <arpa/inet.h>
 #include <openssl/md5.h>
 
-#define MAXBUF 4096
+#define MAXBUF 10 * 4096
 #define CONF_FILENAME "dfc.conf"
 #define FILENAME "foo1.txt"
 
@@ -280,7 +280,40 @@ void get_file_server_map(int md5_mod)
         serverstruct[2].second_file = 4;
         serverstruct[3].first_file = 4;
         serverstruct[3].second_file = 1;
-    }            
+    } 
+    if(md5_mod == 1)
+    {
+        serverstruct[0].first_file = 4;
+        serverstruct[0].second_file = 1;
+        serverstruct[1].first_file = 1;
+        serverstruct[1].second_file = 2;
+        serverstruct[2].first_file = 2;
+        serverstruct[2].second_file = 3;
+        serverstruct[3].first_file = 3;
+        serverstruct[3].second_file = 4;
+    }
+    if(md5_mod == 2)
+    {
+        serverstruct[0].first_file = 3;
+        serverstruct[0].second_file = 4;
+        serverstruct[1].first_file = 4;
+        serverstruct[1].second_file = 1;
+        serverstruct[2].first_file = 1;
+        serverstruct[2].second_file = 2;
+        serverstruct[3].first_file = 2;
+        serverstruct[3].second_file = 3;
+    } 
+    if(md5_mod == 3)
+    {
+        serverstruct[0].first_file = 2;
+        serverstruct[0].second_file = 3;
+        serverstruct[1].first_file = 3;
+        serverstruct[1].second_file = 4;
+        serverstruct[2].first_file = 4;
+        serverstruct[2].second_file = 1;
+        serverstruct[3].first_file = 1;
+        serverstruct[3].second_file = 2;
+    }                                  
 }
 
 int put_file(char * filename, struct sockaddr_in server, struct config *configstruct)
@@ -305,7 +338,8 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
     {
         printf("filesize %d is %d\n", i, size_array[i]);
     } 
-    fd = open(FILENAME , O_RDONLY); //file open with read only option
+
+    fd = open(filename , O_RDONLY); //file open with read only option
     if(fd == -1)
     {
         perror("File not opened: ");
@@ -331,7 +365,7 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
         i++;
     }
     
-    for(i = 0; i< 1; i++)
+    for(i = 0; i< 4; i++)
     {
     	//char * encrypted = encryptdecrypt(message[i], nbytes); //encrypt file data packet
                  
@@ -343,7 +377,7 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
        
        	 printf("\nsending first chunk\n %s\n", message[serverstruct[i].first_file - 1]);
          
-         sender_packet = EmptyStruct;
+         //sender_packet = EmptyStruct;
          strcpy(sender_packet.username, configstruct->username[0]);
          strcpy(sender_packet.password, configstruct->password[0]);
    
@@ -363,6 +397,7 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
          printf("\n%d sending second chunk:::: %s\t, %d::%d\n", i,sender_packet.second_data, sender_packet.second_chunk_number, serverstruct[i].second_file);
         
          printf("size of sender_packet is %d\n", sizeof(sender_packet));
+         printf("sender filename is %s\n", sender_packet.filename);
 	 if( sendto(sock[i] , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&server , remote_length) < 0)
          {
             puts("Send failed");
@@ -409,10 +444,7 @@ int main(int argc , char *argv[])
     
     configstruct = get_conf_parameters(CONF_FILENAME);
 
-    md5_mod = check_md5sum(FILENAME);
     
-    printf("md5 mod result is %d\n", md5_mod);
-    get_file_server_map(md5_mod);
 
     //Create socket
     for ( i = 0 ; i<4; i++)
@@ -489,6 +521,9 @@ int main(int argc , char *argv[])
  
             printf("Sending file %s to the server.....\n", sender_packet.filename);
             sender_packet.valid = 1;
+            md5_mod = check_md5sum(sender_packet.filename);
+            printf("md5 mod result is %d\n", md5_mod);
+            get_file_server_map(md5_mod);
             put_file(sender_packet.filename, server, &configstruct);// Put file into server only if file exists in client side
               //  continue;
         }

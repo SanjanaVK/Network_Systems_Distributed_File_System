@@ -26,6 +26,7 @@ struct packet_t{
     char command[50];
     char filename[50];
     int valid;
+    char error_data[100];
     char username[100];
     char password[100];
 };
@@ -113,17 +114,39 @@ int check_cred_match(struct config configstruct, struct packet_t receiver_packet
     printf("password : %s\n", receiver_packet.password);
     for(i = 0; i< configstruct.number_of_users; i++)
     {
+        printf("hi 1\n");
         if(strcmp(receiver_packet.username, configstruct.username[i]) == 0)
         {
+            printf("hi 2\n");
             if(strcmp(receiver_packet.password, configstruct.password[i]) == 0)
             {
+                printf("hi 3\n");
                 return 1;
             }
          }
      }
      return 0;
 }
-int main()
+
+void check_and_create_directory(char * directory, struct packet_t receiver_packet)
+{
+    char fullpath[100];
+    strcpy(fullpath, ".");
+    strcat(fullpath, directory);
+    strcat(fullpath,"/");
+    strcat(fullpath, receiver_packet.username);
+    strcat(fullpath,"/");
+    struct stat st = {0};
+    printf("full path is %s\n", fullpath);
+    if (stat(fullpath, &st) == -1) 
+    {
+        mkdir(fullpath, 0700);
+        printf("full path is %s\n", fullpath);
+    }
+    return;
+    
+}
+int main(int argc , char *argv[])
 {
     int listenfd, connfd, n;
     pid_t childpid;
@@ -131,8 +154,19 @@ int main()
     struct sockaddr_in remote;     //"Internet socket address structure"
     unsigned int remote_length;  
     char buf[MAXLINE];
+    char directory[MAXLINE];
     struct sockaddr_in cliaddr, servaddr;
     struct config configstruct;
+
+    //Check for arguments. Should provide port number          
+    if (argc != 3)
+    {
+        printf ("USAGE:  <dfs> <port>\n");
+	exit(1);
+    }
+    strcpy(directory, argv[1]);
+    printf("Server is %s\n", directory);
+    
     configstruct = get_conf_parameters(FILENAME); // get config parameters
     
     char file_extension_type[50];
@@ -146,14 +180,16 @@ int main()
     //preparation of the socket address
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(10001);
+    servaddr.sin_port = htons(atoi(argv[2]));
 	
     //bind the socket
     if(bind (listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0)
         printf("Unable to bind");
     //listen to the socket by creating a connection queue, then wait for clients
     listen (listenfd, LISTENQ);
+
     printf("\n%s\n","Server running...waiting for connections.");
+
     for(; ;)
     {
         clilen = sizeof(cliaddr);
@@ -177,8 +213,29 @@ int main()
                 if(check_cred_match(configstruct, receiver_packet) == 0)
                 {
                     printf("credentials do not match\n");
+                    /*sender_packet.valid = -1;
+                    strcpy(sender_packet.error, "Invalid Username or Password");
+                    if( sendto(connfd , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&cliaddr , remote_length) < 0)
+                    {
+                        puts("Send failed");
+                        return 1;
+                    } */
+                    
                     break;
                 }
+
+                char fullpath[100] ;
+                check_and_create_directory(directory, receiver_packet);
+                //printf("full path is %s\n", fullpath);
+                
+                int fd_write1, fd_write2;
+                char filename1[100];
+                char filename2[100];
+                strcpy(filename1, receiver_packet.filename);
+                strcat(filename1, ".");
+                //strcat(filename1, receiver_packet.first_chunk_number);
+                 
+                fd_write1 = open( filename1, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
                 printf("Credentials match\n");    
                 printf("Size of receiver_packet is %d\n", sizeof(receiver_packet));
                 printf("%s","String received from client:\n"); //get request from the client

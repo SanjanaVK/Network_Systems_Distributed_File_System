@@ -42,6 +42,7 @@ struct packet_t{
     char command[50];
     char filename[50];
     int valid;
+    char error_data[100];
     char username[100];
     char password[100];
 };

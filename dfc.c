@@ -46,7 +46,8 @@ struct packet_t{
     char username[100];
     char password[100];
 };
-struct packet_t sender_packet, receiver_packet;
+struct packet_t sender_packet;
+struct packet_t receiver_packet[4];
 struct servers
 {
     int first_file;
@@ -428,8 +429,186 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
         puts("Server reply :");
         puts(server_reply);*/
     }
+    close(fd);
 
 }
+
+int get_file(char * filename, struct sockaddr_in server, struct config configstruct)
+{
+    unsigned long filesize = calculate_filesize(filename);
+    printf("File size %ld\n", filesize);
+    int rem_size = filesize % 4;
+    int size_array[4];
+    int fd;
+    int i;
+    char *message[4];
+    
+    printf("rem size is %d\n", rem_size);
+    unsigned long temp_size= filesize/4;
+    for(i= 0 ; i< 4; i++)
+    {
+        size_array[i] = temp_size;
+    }
+    size_array[3] = temp_size + rem_size;
+    printf("new array size %d\n", size_array[3]);
+    for(i=0; i<4; i++)
+    {
+        printf("filesize %d is %d\n", i, size_array[i]);
+    } 
+    unsigned int remote_length = sizeof(server);
+    message[0] = calloc(size_array[3] , sizeof(char));
+    message[1] = calloc(size_array[3] , sizeof(char));
+    message[2] = calloc(size_array[3] , sizeof(char));
+    message[3] = calloc(size_array[3] , sizeof(char));
+
+    strcpy(sender_packet.username, configstruct.username[0]);
+    strcpy(sender_packet.password, configstruct.password[0]);
+    
+    for(i = 0; i< 4; i++)
+    {
+         sender_packet.first_chunk_number = serverstruct[i].first_file;
+         sender_packet.first_datasize = size_array[serverstruct[i].first_file - 1];
+     
+         sender_packet.second_chunk_number = serverstruct[i].second_file;
+         sender_packet.second_datasize = size_array[serverstruct[i].second_file - 1];
+        
+         printf("size of sender_packet is %d\n", sizeof(sender_packet));
+         printf("sender filename is %s\n", sender_packet.filename);
+	 if( sendto(sock[i] , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&server , remote_length) < 0)
+         {
+            printf("Send failed to server %d", i);
+            //return 1;
+         } 
+    }
+    
+    for(i = 0; i < 4; i++)
+    {
+        if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]),0,(struct sockaddr *)&server , &remote_length) <= 0) 
+        {
+            printf("Receive failed from server %d", i);
+            //return 1;
+        }
+    }
+    printf("file received\n");
+    int check_received[4];
+    int fd_write;
+    bzero(check_received , sizeof(check_received));
+    //get_chunks_from_packets(&message);
+    for( i = 0; i<4; i++)
+    {
+        printf(":::%s, %d:::\n", receiver_packet[i].first_data, receiver_packet[i].first_chunk_number);
+        printf(":::%s, %d:::\n", receiver_packet[i].second_data, receiver_packet[i].second_chunk_number);
+        if(receiver_packet[i].first_chunk_number == 1 || receiver_packet[i].second_chunk_number == 1)
+        {
+            printf("chunk  number 1 found \n");
+            printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
+                if((receiver_packet[i].first_chunk_number == 1 )&& (receiver_packet[i].first_datasize == size_array[0]))
+                {
+                    printf("chunk  number 1 confirmed \n");
+                    if(check_received[0] != 1)
+                    {   
+                        strcpy(message[0] , receiver_packet[i].first_data);
+                        printf("data is %s\n", message[0]);
+                        check_received[0] = 1;
+                        //continue;
+                    }
+                }
+                else if((receiver_packet[i].second_chunk_number == 1) && (receiver_packet[i].second_datasize== size_array[0]))
+                {
+                    if(check_received[0] != 1)
+                    {   
+                        strcpy(message[0] , receiver_packet[i].second_data);
+                        check_received[0] = 1;
+                        //continue;
+                    }
+                }          
+        }   
+        if(receiver_packet[i].first_chunk_number == 2 || receiver_packet[i].second_chunk_number == 2)
+        {
+                printf("chunk  number 1 found \n");
+            printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
+                if((receiver_packet[i].first_chunk_number == 2) && (receiver_packet[i].first_datasize == size_array[1]))
+                {
+                    if(check_received[1] != 1)
+                    {   
+                        strcpy(message[1] , receiver_packet[i].first_data);
+                        check_received[1] = 1;
+                        //continue;
+                    }
+                }
+                if((receiver_packet[i].second_chunk_number == 2) && (receiver_packet[i].second_datasize == size_array[1]))
+                {
+                    if(check_received[1] != 1)
+                    {   
+                        strcpy(message[1] , receiver_packet[i].second_data);
+                        check_received[1] = 1;
+                        //continue;
+                    }
+                }          
+        }   
+        if(receiver_packet[i].first_chunk_number == 3 || receiver_packet[i].second_chunk_number == 3)
+        {
+                if((receiver_packet[i].first_chunk_number == 3) && (receiver_packet[i].first_datasize == size_array[2]))
+                {
+                    if(check_received[2] != 1)
+                    {   
+                        strcpy(message[2] , receiver_packet[i].first_data);
+                        check_received[2] = 1;
+                        //continue;
+                    }
+                }
+                if((receiver_packet[i].second_chunk_number == 3) && (receiver_packet[i].second_datasize == size_array[2]))
+                {
+                    if(check_received[2] != 1)
+                    {   
+                        strcpy(message[2] , receiver_packet[i].second_data);
+                        check_received[2] = 1;
+                        //continue;
+                    }
+                }          
+        }   
+        else if(receiver_packet[i].first_chunk_number == 4 || receiver_packet[i].second_chunk_number == 4)
+        {
+                printf("chunk  number 4 found \n");
+                printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[3]);
+                if((receiver_packet[i].first_chunk_number == 4) && (receiver_packet[i].first_datasize == size_array[3]))
+                {
+                    printf("size is %d::%d:%d\n", receiver_packet[i].first_datasize, size_array[3], check_received[3]);
+                    if(check_received[3] != 1)
+                    {   
+                        strcpy(message[3] , receiver_packet[i].first_data);
+                        printf("data is %s\n", message[3]);
+                        check_received[3] = 1;
+                        //continue;
+                    }
+                }
+                printf("size is %d::%d\n", receiver_packet[i].second_datasize, size_array[3]);
+                if((receiver_packet[i].second_chunk_number == 4) && (receiver_packet[i].second_datasize == size_array[3]))
+                {
+                    if(check_received[3] != 1)
+                    {   
+                        strcpy(message[3] , receiver_packet[i].second_data);
+                        printf("data is %s\n", message[3]);
+                        check_received[3] = 1;
+                       // continue;
+                    }
+                }          
+        }   
+                
+    }
+    char filename_result[100];
+    strcpy(filename_result, receiver_packet[0].filename);
+    strcat(filename_result,".result");
+    fd_write = open( filename_result, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    for(i = 0; i < 4; i++)
+    {
+        printf(":::%s:::\n", message[i]);
+        write(fd_write, message[i] , size_array[i]);
+    }  
+    
+    close(fd_write);    
+}
+
 int main(int argc , char *argv[])
 {
    
@@ -473,6 +652,7 @@ int main(int argc , char *argv[])
     while(1)
     {
         display_menu();
+        sender_packet = EmptyStruct;
         printf("\n Please enter a valid command from the command menu\n");
         
         gets(user_input);// Get user input
@@ -508,7 +688,10 @@ int main(int argc , char *argv[])
  
             printf("Obtaining file %s from the server\n", sender_packet.filename);
             sender_packet.valid = 1;
-           // get_file(remote, remote_length, sockfd); //Get file from the server
+            md5_mod = check_md5sum(sender_packet.filename);
+            printf("md5 mod result is %d\n", md5_mod);
+            get_file_server_map(md5_mod);
+            get_file(sender_packet.filename, server, configstruct); //Get file from the server
         }
         
         else if (strcmp(sender_packet.command , "put") == 0)

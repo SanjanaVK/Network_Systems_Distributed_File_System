@@ -16,6 +16,8 @@
 #define MAXBUF 10 * 4096
 #define FILENAME "dfs.conf" /*Configuration file*/
 
+static const struct packet_t EmptyStruct; 
+
 struct packet_t{
     int first_chunk_number;
     unsigned int first_datasize;
@@ -143,6 +145,162 @@ void check_and_create_directory(char * directory, struct packet_t receiver_packe
     return;
     
 }
+
+void put_file(struct config configstruct, char * directory)
+{
+    if(check_cred_match(configstruct, receiver_packet) == 0)
+    {
+         printf("credentials do not match\n");
+                    /*sender_packet.valid = -1;
+                    strcpy(sender_packet.error, "Invalid Username or Password");
+                    if( sendto(connfd , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&cliaddr , remote_length) < 0)
+                    {
+                        puts("Send failed");
+                        return 1;
+                    } */
+                    
+          return;
+     }
+
+     char fullpath[100];
+     char first_chunk[10000];
+     char second_chunk[10000];
+     printf("filename is %s\n", receiver_packet.filename);
+     bzero(fullpath, sizeof(fullpath));
+     check_and_create_directory(directory, receiver_packet, fullpath);
+     printf("full path is %s\n", fullpath);
+                
+     int fd_write1, fd_write2;
+     char filename1[100];
+     char filename2[100];
+     strcpy(filename1, fullpath);
+     strcat(filename1, receiver_packet.filename);
+     strcat(filename1, ".");
+     char chunk_string[10];
+     bzero(chunk_string, sizeof(chunk_string));
+     sprintf( chunk_string, "%d", receiver_packet.first_chunk_number);
+     strcat(filename1, chunk_string);               
+     printf("filename is %s\n", filename1);
+
+     strcpy(filename2, fullpath);
+     strcat(filename2, receiver_packet.filename);
+     strcat(filename2, ".");
+     bzero(chunk_string, sizeof(chunk_string));
+     sprintf( chunk_string, "%d", receiver_packet.second_chunk_number);
+     strcat(filename2, chunk_string);
+                
+     printf("filename is %s\n", filename2);
+
+     fd_write1 = open( filename1, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+     fd_write2 = open( filename2, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+
+        
+     printf("Size of receiver_packet is %d\n", sizeof(receiver_packet));
+     printf("%s","String received from client:\n"); //get request from the client
+     printf("1. chunk number is %d\n",receiver_packet.first_chunk_number);
+     strcpy(first_chunk, receiver_packet.first_data);
+     puts(receiver_packet.first_data);
+     write(fd_write1, receiver_packet.first_data , receiver_packet.first_datasize);
+
+     printf("2. chunk number is %d\n",receiver_packet.second_chunk_number);
+     strcpy(second_chunk, receiver_packet.second_data);
+     puts(receiver_packet.second_data);
+     write(fd_write2, receiver_packet.second_data , receiver_packet.second_datasize);    
+}
+
+int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
+{
+     char fullpath[100]; 
+     int i;
+
+     printf("filename is %s\n", receiver_packet.filename);
+     bzero(fullpath, sizeof(fullpath));
+     check_and_create_directory(directory, receiver_packet, fullpath);
+     printf("full path is %s\n", fullpath);
+     
+     int fd_read1, fd_read2;
+     char filename1[100];
+     char filename2[100];
+     strcpy(filename1, fullpath);
+     strcat(filename1, receiver_packet.filename);
+     strcat(filename1, ".");
+     char chunk_string[10];
+     bzero(chunk_string, sizeof(chunk_string));
+     sprintf( chunk_string, "%d", receiver_packet.first_chunk_number);
+     strcat(filename1, chunk_string);               
+     printf("filename is %s\n", filename1);
+
+     strcpy(filename2, fullpath);
+     strcat(filename2, receiver_packet.filename);
+     strcat(filename2, ".");
+     bzero(chunk_string, sizeof(chunk_string));
+     sprintf( chunk_string, "%d", receiver_packet.second_chunk_number);
+     strcat(filename2, chunk_string);
+                
+     printf("filename is %s\n", filename2);
+    
+     fd_read1 = open(filename1 , O_RDONLY); //file open with read only option
+     if(fd_read1 == -1)
+     {
+        perror("File not opened: ");
+        return -1;
+     }
+
+    fd_read2 = open(filename2 , O_RDONLY); //file open with read only option
+    if(fd_read2 == -1)
+    {
+        perror("File not opened: ");
+        return -1;
+    }
+    i = 0;
+    //keep communicating with server
+    printf("Sending files : \n");
+    i = 0; 
+    char buf[100];
+    unsigned long nbytes;
+    char *message[2];
+    message[0] = calloc(receiver_packet.first_datasize , sizeof(char));
+    message[1] = calloc(receiver_packet.second_datasize , sizeof(char));
+    
+    while(nbytes = read(fd_read1, message[0], receiver_packet.first_datasize)) //read MAXBUFSIZE from the file
+    {
+        printf("%s\n",message[0]);
+    }
+    while(nbytes = read(fd_read2, message[1], receiver_packet.second_datasize)) //read MAXBUFSIZE from the file
+    {
+        printf("%s\n",message[1]);
+    }
+    
+    sender_packet = EmptyStruct;
+       
+    strcpy(sender_packet.filename , receiver_packet.filename);  
+    sender_packet.first_chunk_number = receiver_packet.first_chunk_number;
+    sender_packet.first_datasize = receiver_packet.first_datasize;
+   
+    bzero(sender_packet.first_data, sizeof(sender_packet.first_data));
+    strcpy(sender_packet.first_data , message[0]);
+
+    sender_packet.second_chunk_number = receiver_packet.second_chunk_number;
+    sender_packet.second_datasize = receiver_packet.second_datasize;
+       
+    bzero(sender_packet.second_data, sizeof(sender_packet.second_data));
+    strcpy(sender_packet.second_data , message[1]);
+         
+    printf("\n sending first chunk::::: %s\t, %d\n",sender_packet.first_data, sender_packet.first_chunk_number);
+    printf("\n sending second chunk:::: %s\t, %d\n",sender_packet.second_data, sender_packet.second_chunk_number);
+        
+    printf("size of sender_packet is %d\n", sizeof(sender_packet));
+    printf("sender filename is %s\n", sender_packet.filename);
+    unsigned int remote_length = sizeof(cliaddr);
+    if( sendto(connfd , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&cliaddr , remote_length) < 0)
+    {
+         puts("Send failed");
+         return 1;
+    } 
+    return 0;
+            
+}
+
 int main(int argc , char *argv[])
 {
     int listenfd, connfd, n;
@@ -203,10 +361,10 @@ int main(int argc , char *argv[])
             int result=0;
             int fifo_index = 0;
             int other_request = 0;
-            char first_chunk[10000];
-            char second_chunk[10000];
+           
             while (recvfrom(connfd, &receiver_packet, sizeof(receiver_packet),0,(struct sockaddr *)&cliaddr , &remote_length) > 0) 
             {
+                printf("Received command: %s\n",receiver_packet.command);
                 if(check_cred_match(configstruct, receiver_packet) == 0)
                 {
                     printf("credentials do not match\n");
@@ -218,64 +376,30 @@ int main(int argc , char *argv[])
                         return 1;
                     } */
                     
-                    break;
+                    return;
                 }
-
-                char fullpath[100] ;
-                printf("filename is %s\n", receiver_packet.filename);
-                bzero(fullpath, sizeof(fullpath));
-                check_and_create_directory(directory, receiver_packet, fullpath);
-                printf("full path is %s\n", fullpath);
-                
-                int fd_write1, fd_write2;
-                char filename1[100];
-                char filename2[100];
-                strcpy(filename1, fullpath);
-                strcat(filename1, receiver_packet.filename);
-                strcat(filename1, ".");
-                char chunk_string[10];
-                bzero(chunk_string, sizeof(chunk_string));
-                sprintf( chunk_string, "%d", receiver_packet.first_chunk_number);
-                strcat(filename1, chunk_string);               
-                printf("filename is %s\n", filename1);
-
-                strcpy(filename2, fullpath);
-                strcat(filename2, receiver_packet.filename);
-                strcat(filename2, ".");
-                bzero(chunk_string, sizeof(chunk_string));
-                sprintf( chunk_string, "%d", receiver_packet.second_chunk_number);
-                strcat(filename2, chunk_string);
-                
-                printf("filename is %s\n", filename2);
-
-                fd_write1 = open( filename1, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-                fd_write2 = open( filename2, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-
-                printf("Credentials match\n");    
-                printf("Size of receiver_packet is %d\n", sizeof(receiver_packet));
-                printf("%s","String received from client:\n"); //get request from the client
-                printf("1. chunk number is %d\n",receiver_packet.first_chunk_number);
-                strcpy(first_chunk, receiver_packet.first_data);
-                puts(receiver_packet.first_data);
-                write(fd_write1, receiver_packet.first_data , receiver_packet.first_datasize);
-
-                printf("2. chunk number is %d\n",receiver_packet.second_chunk_number);
-                strcpy(second_chunk, receiver_packet.second_data);
-                puts(receiver_packet.second_data);
-                write(fd_write2, receiver_packet.second_data , receiver_packet.second_datasize);
-                
-                
-               /* if(receiver_packet.chunk_number == 2)
+                printf("Credentials match\n"); 
+        
+                if(strcmp(receiver_packet.command, "put") == 0)
                 {
-                   strcpy(second_chunk, receiver_packet.data);
-                   puts(receiver_packet.data); 
-                }*/
+                    put_file(configstruct, directory); //If command is put, then client puts file into server
+                }
+           
+                else if(strcmp(receiver_packet.command, "get") == 0)
+                {
+                    get_file(directory, connfd, cliaddr); //If command is get, then client gets a file from server
+                }
+               
+                else if(strcmp(receiver_packet.command, "ls") == 0)
+                {
+                    //get_list_of_files(remote, remote_length, sockfd); //If command is ls then get list of all files in server directory
+                }
             }
 	        //close(connfd);
                 //printf("Closing socket.........\n");
                 exit(0);
              
-            }  
+        }  
         //close socket of the server
         close(connfd);
         printf("socket closed\n");

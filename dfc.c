@@ -605,18 +605,133 @@ void get_list_of_files(struct sockaddr_in server, struct config configstruct)
             //return 1;
          } 
     }
-    
+    char *server_list_files[4];
+    for(i=0; i<4; i++)
+    {
+        server_list_files[i] = calloc(500 , sizeof(char));
+    }
+    char *filenames[50];
+    for(i=0; i<50; i++)
+    {
+        filenames[i] = calloc(50 , sizeof(char));
+    }
+    int number_of_files = 0;
     for(i = 0; i < 4; i++)
     {
         recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length); //receive the list of files from server
         char *token = strtok(receiver_packet[i].first_data, "#");
         while (token != NULL)
         {
-            printf("%s\n", token); //display each filename
+            //printf("%s\n", token); //display each filename
+            char * temp = token;
+            int j;int k= 0;
+            for (j=0; temp[j]; temp[j]=='.' ? j++: *temp++,k++);
+           // printf("number of dots in %s is %d, %d\n", token, j, (k-2));
+            if( j > 0)
+            {
+                int m;
+                for(m=0; m < number_of_files ; m++)
+                {
+                    if((k-2) > 0)
+                    { 
+                        char temp_filename[50];
+                        bzero(temp_filename, sizeof(temp_filename));
+                        strncpy(temp_filename,token,(k-2));
+                        //printf("temp filename %s. filename %s\n", temp_filename, filenames[m]);
+                        if((strcmp(filenames[m], temp_filename)) == 0)
+                            break;
+                    }
+                }
+                if(m == number_of_files)
+                {
+                    if((k-2) > 0)
+                    { 
+                       // printf(" m is %d, bytes is %d, token is %s\n", m,(k-2),token);
+                        strncpy(filenames[number_of_files++],token,(k-2));
+                        //printf("number of files is %d, %s\n", number_of_files, filenames[number_of_files]);
+                    }
+                    
+                }
+                if((k-2) > 0)
+                { 
+                    strcat(server_list_files[i], token);
+                    strcat(server_list_files[i], "#");
+                    //printf("%s\n",server_list_files[i]);
+                }
+                
+            }
             token = strtok(NULL, "#");
         }
         printf("Number of files is %d\n", receiver_packet[i].first_datasize);
     }
+    int l;
+    for(l = 0 ; l<number_of_files; l++)
+    {
+        char temp_filename1[50];
+        char temp_filename2[50];
+        char temp_filename3[50];
+        char temp_filename4[50];
+        int file_present[4] ;
+        bzero(file_present, sizeof(file_present));
+        int s = 0;
+        //printf("filename is %s\n", filenames[i]);
+        strcpy(temp_filename1, filenames[l]);
+        strcat(temp_filename1, ".1");
+        strcpy(temp_filename2, filenames[l]);
+        strcat(temp_filename2, ".2");
+        strcpy(temp_filename3, filenames[l]);
+        strcat(temp_filename3, ".3");
+        strcpy(temp_filename4, filenames[l]);
+        strcat(temp_filename4, ".4");
+        bzero(file_present, sizeof(file_present));
+        for ( s = 0; s< 4; s++)
+        {
+            
+            if(strstr(server_list_files[s], temp_filename1) != NULL)
+            {
+                file_present[0] = 1;
+            }
+            if(strstr(server_list_files[s], temp_filename2) != NULL)
+            {
+                file_present[1] = 1;
+            }
+            if(strstr(server_list_files[s], temp_filename3) != NULL)
+            {
+                file_present[2] = 1;
+            }
+            if(strstr(server_list_files[s], temp_filename4) != NULL)
+            {
+                file_present[3] = 1;
+            }
+        }
+        
+        int k;
+        if(strcmp(filenames[l] , "list_test") == 0)
+        {
+            //printf("%d:%d:%d:%d:\n", file_present[0],file_present[1],file_present[2],file_present[3]);
+        }
+        for(k=0 ; k<4; k++)
+        {
+            if(file_present[k] != 1)
+            {
+                printf("%s [incomplete]\n", filenames[l]);
+                break;
+            }
+        }
+        if(k == 4)
+        {
+            printf("%s\n", filenames[l]);
+        }
+    }
+    for(i=0; i<4; i++)
+    {
+        free(server_list_files[i]);
+    }
+    for(i=0; i<50; i++)
+    {
+        free(filenames[i]);
+    }
+    
 }
 
 int main(int argc , char *argv[])
@@ -681,6 +796,14 @@ int main(int argc , char *argv[])
             strcpy(sender_packet.command, token);
 
         if(strcmp(sender_packet.command, "MKDIR") == 0)
+        {
+            token = strtok(NULL, " ");
+            if(token != NULL)
+            {
+                strcpy(sender_packet.subfolder, token);
+            }
+        }
+        if(strcmp(sender_packet.command, "LIST") == 0)
         {
             token = strtok(NULL, " ");
             if(token != NULL)

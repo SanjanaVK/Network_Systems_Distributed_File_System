@@ -267,6 +267,7 @@ void put_file(struct config configstruct, char * directory)
      char filename1[100];
      char filename2[100];
      strcpy(filename1, fullpath);
+     strcat(filename1, ".");
      strcat(filename1, receiver_packet.filename);
      strcat(filename1, ".");
      char chunk_string[10];
@@ -276,6 +277,7 @@ void put_file(struct config configstruct, char * directory)
      printf("filename is %s\n", filename1);
 
      strcpy(filename2, fullpath);
+      strcat(filename2, ".");
      strcat(filename2, receiver_packet.filename);
      strcat(filename2, ".");
      bzero(chunk_string, sizeof(chunk_string));
@@ -332,6 +334,7 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
         bzero(chunk_string, sizeof(chunk_string));
         sprintf( chunk_string, "%d", i);
         strcpy(filename1, fullpath);
+        strcat(filename1, ".");
         strcat(filename1, receiver_packet.filename);
         strcat(filename1, ".");
  
@@ -355,6 +358,7 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
         bzero(chunk_string, sizeof(chunk_string));
         sprintf( chunk_string, "%d", i);
         strcpy(filename2, fullpath);
+        strcat(filename2, ".");
         strcat(filename2, receiver_packet.filename);
         strcat(filename2, ".");
         strcat(filename2, chunk_string);               

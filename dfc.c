@@ -636,7 +636,9 @@ void get_list_of_files(struct sockaddr_in server, struct config configstruct)
                     { 
                         char temp_filename[50];
                         bzero(temp_filename, sizeof(temp_filename));
-                        strncpy(temp_filename,token,(k-2));
+                        
+                            strncpy(temp_filename,(token+1),(k-3));
+                       
                         //printf("temp filename %s. filename %s\n", temp_filename, filenames[m]);
                         if((strcmp(filenames[m], temp_filename)) == 0)
                             break;
@@ -647,7 +649,9 @@ void get_list_of_files(struct sockaddr_in server, struct config configstruct)
                     if((k-2) > 0)
                     { 
                        // printf(" m is %d, bytes is %d, token is %s\n", m,(k-2),token);
-                        strncpy(filenames[number_of_files++],token,(k-2));
+                         
+                            strncpy(filenames[number_of_files++],(token+1),(k-3));
+                         
                         //printf("number of files is %d, %s\n", number_of_files, filenames[number_of_files]);
                     }
                     
@@ -706,10 +710,6 @@ void get_list_of_files(struct sockaddr_in server, struct config configstruct)
         }
         
         int k;
-        if(strcmp(filenames[l] , "list_test") == 0)
-        {
-            //printf("%d:%d:%d:%d:\n", file_present[0],file_present[1],file_present[2],file_present[3]);
-        }
         for(k=0 ; k<4; k++)
         {
             if(file_present[k] != 1)

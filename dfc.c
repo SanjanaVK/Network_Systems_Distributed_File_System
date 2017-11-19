@@ -395,7 +395,7 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
          
         //Send some data
        
-       	 printf("\nsending first chunk\n %s\n", message[serverstruct[i].first_file - 1]);
+       	// printf("\nsending first chunk\n %s\n", message[serverstruct[i].first_file - 1]);
          
          //sender_packet = EmptyStruct;
          strcpy(sender_packet.username, configstruct->username[0]);
@@ -405,13 +405,19 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
          sender_packet.first_datasize = size_array[serverstruct[i].first_file - 1];
          
 	 bzero(sender_packet.first_data, sizeof(sender_packet.first_data));
-         memcpy(sender_packet.first_data , message[serverstruct[i].first_file - 1],sender_packet.first_datasize);
+         
+         memcpy(sender_packet.first_data , message[serverstruct[i].first_file - 1], sender_packet.first_datasize);
+         char * encrypted = encryptdecrypt(sender_packet.first_data, sender_packet.first_datasize);
+
+         memcpy(sender_packet.first_data , encrypted, sender_packet.first_datasize);
 
          sender_packet.second_chunk_number = serverstruct[i].second_file;
          sender_packet.second_datasize = size_array[serverstruct[i].second_file - 1];
          
 	 bzero(sender_packet.second_data, sizeof(sender_packet.second_data));
-         memcpy(sender_packet.second_data , message[serverstruct[i].second_file - 1], sender_packet.second_datasize);
+         memcpy(sender_packet.second_data , message[serverstruct[i].second_file  - 1], sender_packet.second_datasize);
+         encrypted = encryptdecrypt(sender_packet.second_data, sender_packet.second_datasize);
+         memcpy(sender_packet.second_data , encrypted, sender_packet.second_datasize);
          
 	 printf("\n%d sending first chunk::::: %s\t, %d::%d\n",i, sender_packet.first_data, sender_packet.first_chunk_number, serverstruct[i].first_file);
          printf("\n%d sending second chunk:::: %s\t, %d::%d\n", i,sender_packet.second_data, sender_packet.second_chunk_number, serverstruct[i].second_file);
@@ -617,9 +623,10 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
     fd_write = open( filename_result, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
     for(i = 0; i < 4; i++)
     {
-        printf(":::%s:::\n", message[i]);
+        //printf(":::%s:::\n", message[i]);
         printf("size of message is %ld\n", sizeof(message[i]));
-        write(fd_write, message[i] , size_array[i]);
+        char * decrypted = encryptdecrypt(message[i], size_array[i]);
+        write(fd_write, decrypted, size_array[i]);
     }  
     int fd_write1 = open("chunk1", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
     write(fd_write1, message[0] , size_array[0]);

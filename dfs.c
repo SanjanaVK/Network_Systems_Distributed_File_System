@@ -42,6 +42,17 @@ struct config //ws.conf parsed map
    int number_of_users;
 };
 
+/*This function provides data encryption and decryption*/
+char * encryptdecrypt(char * message, int length)
+{
+    int i;
+    char key = 'S';
+    for(i=0; i < length; i++)
+    {
+        message[i] ^= key; //Bitwise XOR with character 'S'
+    }
+    return message;
+}
 struct config get_conf_parameters(char *filename) //parse configuration file to structures
 {
     struct config configstruct;
@@ -215,12 +226,16 @@ void put_file(struct config configstruct, char * directory)
      printf("Size of receiver_packet is %d\n", sizeof(receiver_packet));
      printf("%s","String received from client:\n"); //get request from the client
      printf("1. chunk number is %d\n",receiver_packet.first_chunk_number);
-     strcpy(first_chunk, receiver_packet.first_data);
+     char * decrypted = encryptdecrypt(receiver_packet.first_data, receiver_packet.first_datasize);
+     
+     strcpy(receiver_packet.first_data, decrypted);
      puts(receiver_packet.first_data);
      write(fd_write1, receiver_packet.first_data , receiver_packet.first_datasize);
 
      printf("2. chunk number is %d\n",receiver_packet.second_chunk_number);
-     strcpy(second_chunk, receiver_packet.second_data);
+     decrypted = encryptdecrypt(receiver_packet.second_data, receiver_packet.second_datasize);
+    
+     strcpy(receiver_packet.second_data, decrypted);
      puts(receiver_packet.second_data);
      write(fd_write2, receiver_packet.second_data , receiver_packet.second_datasize);    
 }
@@ -317,16 +332,18 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
     sender_packet.first_datasize = size1;
    
     bzero(sender_packet.first_data, sizeof(sender_packet.first_data));
-    memcpy(sender_packet.first_data , message[0], size1);
+    char * encrypted = encryptdecrypt(message[0], size1);
+    memcpy(sender_packet.first_data , encrypted, size1);
 
     sender_packet.second_chunk_number = second_file;
     sender_packet.second_datasize = size2;
        
     bzero(sender_packet.second_data, sizeof(sender_packet.second_data));
-    memcpy(sender_packet.second_data , message[1], size2);
+    encrypted = encryptdecrypt(message[1], size2);
+    memcpy(sender_packet.second_data , encrypted, size2);
          
-    printf("\n sending first chunk::::: %s\t, %d\n",sender_packet.first_data, sender_packet.first_chunk_number);
-    printf("\n sending second chunk:::: %s\t, %d\n",sender_packet.second_data, sender_packet.second_chunk_number);
+   // printf("\n sending first chunk::::: %s\t, %d\n",sender_packet.first_data, sender_packet.first_chunk_number);
+    //printf("\n sending second chunk:::: %s\t, %d\n",sender_packet.second_data, sender_packet.second_chunk_number);
         
     printf("size of sender_packet is %d\n", sizeof(sender_packet));
     printf("sender filename is %s\n", sender_packet.filename);

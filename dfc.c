@@ -366,6 +366,25 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
         i++;
     }
     
+    int fd_write1 = open("chunk1.1", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[0] , size_array[0]);
+    close(fd_write1);
+    fd_write1 = open("chunk2.2", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[1] , size_array[1]);
+     close(fd_write1);
+     fd_write1 = open("chunk3.3", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[2] , size_array[2]);
+    close(fd_write1);
+    fd_write1 = open("chunk4.4", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[3] , size_array[3]);
+    close(fd_write1);
+   int fd_write4 = open("total.png", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+   write(fd_write4, message[0] , size_array[0]);
+   write(fd_write4, message[1] , size_array[1]);
+   write(fd_write4, message[2] , size_array[2]);
+   write(fd_write4, message[3] , size_array[3]);
+   close(fd_write4);
+    
     for(i = 0; i< 4; i++)
     {
     	//char * encrypted = encryptdecrypt(message[i], nbytes); //encrypt file data packet
@@ -386,13 +405,13 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
          sender_packet.first_datasize = size_array[serverstruct[i].first_file - 1];
          
 	 bzero(sender_packet.first_data, sizeof(sender_packet.first_data));
-         strcpy(sender_packet.first_data , message[serverstruct[i].first_file - 1]);
+         memcpy(sender_packet.first_data , message[serverstruct[i].first_file - 1],sender_packet.first_datasize);
 
          sender_packet.second_chunk_number = serverstruct[i].second_file;
          sender_packet.second_datasize = size_array[serverstruct[i].second_file - 1];
          
 	 bzero(sender_packet.second_data, sizeof(sender_packet.second_data));
-         strcpy(sender_packet.second_data , message[serverstruct[i].second_file - 1]);
+         memcpy(sender_packet.second_data , message[serverstruct[i].second_file - 1], sender_packet.second_datasize);
          
 	 printf("\n%d sending first chunk::::: %s\t, %d::%d\n",i, sender_packet.first_data, sender_packet.first_chunk_number, serverstruct[i].first_file);
          printf("\n%d sending second chunk:::: %s\t, %d::%d\n", i,sender_packet.second_data, sender_packet.second_chunk_number, serverstruct[i].second_file);
@@ -502,7 +521,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                     printf("chunk  number 1 confirmed \n");
                     if(check_received[0] != 1)
                     {   
-                        strcpy(message[0] , receiver_packet[i].first_data);
+                        memcpy(message[0] , receiver_packet[i].first_data, size_array[0]);
                         //printf("data is %s\n", message[0]);
                         check_received[0] = 1;
                         //continue;
@@ -512,7 +531,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                 {
                     if(check_received[0] != 1)
                     {   
-                        strcpy(message[0] , receiver_packet[i].second_data);
+                        memcpy(message[0] , receiver_packet[i].second_data, size_array[0]);
                         check_received[0] = 1;
                         //continue;
                     }
@@ -526,7 +545,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                 {
                     if(check_received[1] != 1)
                     {   
-                        strcpy(message[1] , receiver_packet[i].first_data);
+                        memcpy(message[1] , receiver_packet[i].first_data, size_array[1]);
                         check_received[1] = 1;
                         //continue;
                     }
@@ -535,7 +554,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                 {
                     if(check_received[1] != 1)
                     {   
-                        strcpy(message[1] , receiver_packet[i].second_data);
+                        memcpy(message[1] , receiver_packet[i].second_data, size_array[1]);
                         check_received[1] = 1;
                         //continue;
                     }
@@ -548,7 +567,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                 {
                     if(check_received[2] != 1)
                     {   
-                        strcpy(message[2] , receiver_packet[i].first_data);
+                        memcpy(message[2] , receiver_packet[i].first_data, size_array[2]);
                         check_received[2] = 1;
                         //continue;
                     }
@@ -557,7 +576,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                 {
                     if(check_received[2] != 1)
                     {   
-                        strcpy(message[2] , receiver_packet[i].second_data);
+                        memcpy(message[2] , receiver_packet[i].second_data, size_array[2]);
                         check_received[2] = 1;
                         //continue;
                     }
@@ -572,7 +591,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                    // printf("size is %d::%d:%d\n", receiver_packet[i].first_datasize, size_array[3], check_received[3]);
                     if(check_received[3] != 1)
                     {   
-                        strcpy(message[3] , receiver_packet[i].first_data);
+                        memcpy(message[3] , receiver_packet[i].first_data, size_array[3]);
                         //printf("data is %s\n", message[3]);
                         check_received[3] = 1;
                         //continue;
@@ -583,7 +602,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
                 {
                     if(check_received[3] != 1)
                     {   
-                        strcpy(message[3] , receiver_packet[i].second_data);
+                        memcpy(message[3] , receiver_packet[i].second_data, size_array[3]);
                         //("data is %s\n", message[3]);
                         check_received[3] = 1;
                        // continue;
@@ -599,10 +618,21 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
     for(i = 0; i < 4; i++)
     {
         printf(":::%s:::\n", message[i]);
-        printf("size of message is %ld\n", strlen(message[i]));
+        printf("size of message is %ld\n", sizeof(message[i]));
         write(fd_write, message[i] , size_array[i]);
     }  
-    
+    int fd_write1 = open("chunk1", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[0] , size_array[0]);
+    close(fd_write1);
+    fd_write1 = open("chunk2", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[1] , size_array[1]);
+     close(fd_write1);
+     fd_write1 = open("chunk3", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[2] , size_array[2]);
+    close(fd_write1);
+    fd_write1 = open("chunk4", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
+    write(fd_write1, message[3] , size_array[3]);
+    close(fd_write1);
     close(fd_write);    
 }
 

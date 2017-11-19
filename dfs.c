@@ -317,13 +317,13 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
     sender_packet.first_datasize = size1;
    
     bzero(sender_packet.first_data, sizeof(sender_packet.first_data));
-    strcpy(sender_packet.first_data , message[0]);
+    memcpy(sender_packet.first_data , message[0], size1);
 
     sender_packet.second_chunk_number = second_file;
     sender_packet.second_datasize = size2;
        
     bzero(sender_packet.second_data, sizeof(sender_packet.second_data));
-    strcpy(sender_packet.second_data , message[1]);
+    memcpy(sender_packet.second_data , message[1], size2);
          
     printf("\n sending first chunk::::: %s\t, %d\n",sender_packet.first_data, sender_packet.first_chunk_number);
     printf("\n sending second chunk:::: %s\t, %d\n",sender_packet.second_data, sender_packet.second_chunk_number);

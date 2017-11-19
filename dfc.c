@@ -64,7 +64,7 @@ void display_menu()
    printf("\n================================================Command Menu=====================================================================================\n");
    printf("\"get [file_name]\"       : The server transmits the requested file to the client \n");
    printf("\"put [file_name]\"       : The server receives transmitted file from the server and stores it locally \n");
-   printf("\"delete [file_name]\"    : The server deletes the file if exists otherwise does nothing \n");
+   printf("\"MKDIR <subfolder/>\"    : The server makes a new directory under the username \n");
    printf("\"ls\"                    : The server searches for all files in its directory and sends the list of all the files to the client \n");
    printf("\"exit\"                  : The server exits gracefully \n");
 }
@@ -410,11 +410,11 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
          }
          if(receiver_packet[i].valid == -1)
          {
-             printf("Server %d says : %s", i, receiver_packet[i].error_data);
+             printf("Server says : %s", receiver_packet[i].error_data);
              return;
          }
          else
-             printf("Credentials Matched");
+             printf("Credentials Matched\n");
         
     }
     for( i = 0; i< 4; i++)
@@ -427,31 +427,14 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
 
 int get_file(char * filename, struct sockaddr_in server, struct config configstruct)
 {
-    unsigned long filesize = calculate_filesize(filename);
-    printf("File size %ld\n", filesize);
-    int rem_size = filesize % 4;
-    int size_array[4];
+    
+    
     int fd;
     int i;
     char *message[4];
     
-    printf("rem size is %d\n", rem_size);
-    unsigned long temp_size= filesize/4;
-    for(i= 0 ; i< 4; i++)
-    {
-        size_array[i] = temp_size;
-    }
-    size_array[3] = temp_size + rem_size;
-    printf("new array size %d\n", size_array[3]);
-    for(i=0; i<4; i++)
-    {
-        printf("filesize %d is %d\n", i, size_array[i]);
-    } 
     unsigned int remote_length = sizeof(server);
-    message[0] = calloc(size_array[3] , sizeof(char));
-    message[1] = calloc(size_array[3] , sizeof(char));
-    message[2] = calloc(size_array[3] , sizeof(char));
-    message[3] = calloc(size_array[3] , sizeof(char));
+    
 
     strcpy(sender_packet.username, configstruct.username[0]);
     strcpy(sender_packet.password, configstruct.password[0]);
@@ -477,7 +460,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
              return;
          }
          else
-             printf("Credentials Matched");
+             printf("Credentials Matched\n");
     }
     
     
@@ -490,10 +473,11 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
             //return 1;
         }
     }
-    printf("file received\n");
+    printf("File received\n");
     int check_received[4];
     int fd_write;
     bzero(check_received , sizeof(check_received));
+    int temp_size_array[4];
     //get_chunks_from_packets(&message);
     for( i = 0; i<4; i++)
     {
@@ -503,22 +487,26 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         {
             //printf("chunk  number 1 found \n");
             //printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
-                if((receiver_packet[i].first_chunk_number == 1 )&& (receiver_packet[i].first_datasize == size_array[0]))
+                if((receiver_packet[i].first_chunk_number == 1 )&& (receiver_packet[i].first_datasize != 0))
                 {
                     //printf("chunk  number 1 confirmed \n");
                     if(check_received[0] != 1)
                     {   printf("chunk  number 1 receiving\n");
-                        memcpy(message[0] , receiver_packet[i].first_data, size_array[0]);
+                        message[0] = calloc(receiver_packet[i].first_datasize , sizeof(char));
+                        memcpy(message[0] , receiver_packet[i].first_data, receiver_packet[i].first_datasize);
+                        temp_size_array[0] = receiver_packet[i].first_datasize;
                         //printf("data is %s\n", message[0]);
                         check_received[0] = 1;
                         //continue;
                     }
                 }
-                else if((receiver_packet[i].second_chunk_number == 1) && (receiver_packet[i].second_datasize== size_array[0]))
+                else if((receiver_packet[i].second_chunk_number == 1) && (receiver_packet[i].second_datasize!= 0))
                 {
                     if(check_received[0] != 1)
                     {   printf("chunk  number 1 receiving\n");
-                        memcpy(message[0] , receiver_packet[i].second_data, size_array[0]);
+                        message[0] = calloc(receiver_packet[i].second_datasize , sizeof(char));
+                        memcpy(message[0] , receiver_packet[i].second_data, receiver_packet[i].second_datasize);
+                        temp_size_array[3] = receiver_packet[i].second_datasize;
                         check_received[0] = 1;
                         //continue;
                     }
@@ -528,20 +516,24 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         {
                 //printf("chunk  number 2 found \n");
             //printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
-                if((receiver_packet[i].first_chunk_number == 2) && (receiver_packet[i].first_datasize == size_array[1]))
+                if((receiver_packet[i].first_chunk_number == 2))
                 {
                     if(check_received[1] != 1)
                     {   printf("chunk  number 2 receiving\n");
-                        memcpy(message[1] , receiver_packet[i].first_data, size_array[1]);
+                        message[1] = calloc(receiver_packet[i].first_datasize , sizeof(char));
+                        memcpy(message[1] , receiver_packet[i].first_data, receiver_packet[i].first_datasize);
+                        temp_size_array[1] = receiver_packet[i].first_datasize;
                         check_received[1] = 1;
                         //continue;
                     }
                 }
-                if((receiver_packet[i].second_chunk_number == 2) && (receiver_packet[i].second_datasize == size_array[1]))
+                if((receiver_packet[i].second_chunk_number == 2))
                 {
                     if(check_received[1] != 1)
                     {   printf("chunk  number 2 receiving\n");
-                        memcpy(message[1] , receiver_packet[i].second_data, size_array[1]);
+                        message[1] = calloc(receiver_packet[i].second_datasize , sizeof(char));
+                        memcpy(message[1] , receiver_packet[i].second_data, receiver_packet[i].second_datasize);
+                        temp_size_array[1] = receiver_packet[i].second_datasize;
                         check_received[1] = 1;
                         //continue;
                     }
@@ -550,46 +542,54 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         if(receiver_packet[i].first_chunk_number == 3 || receiver_packet[i].second_chunk_number == 3)
         {
             //printf("chunk  number 3 found \n");
-                if((receiver_packet[i].first_chunk_number == 3) && (receiver_packet[i].first_datasize == size_array[2]))
+                if((receiver_packet[i].first_chunk_number == 3))
                 {  
                     if(check_received[2] != 1)
-                    {    printf("chunk  number 3 receiving\n");
-                        memcpy(message[2] , receiver_packet[i].first_data, size_array[2]);
+                    {   printf("chunk  number 3 receiving\n");
+                        message[2] = calloc(receiver_packet[i].first_datasize , sizeof(char));
+                        memcpy(message[2] , receiver_packet[i].first_data, receiver_packet[i].first_datasize);
+                        temp_size_array[2] = receiver_packet[i].first_datasize;
                         check_received[2] = 1;
                         //continue;
                     }
                 }
-                if((receiver_packet[i].second_chunk_number == 3) && (receiver_packet[i].second_datasize == size_array[2]))
+                if((receiver_packet[i].second_chunk_number == 3) )
                 {   
                     if(check_received[2] != 1)
                     {   printf("chunk  number 3 receiving\n");
-                        memcpy(message[2] , receiver_packet[i].second_data, size_array[2]);
+                        message[2] = calloc(receiver_packet[i].second_datasize , sizeof(char));
+                        memcpy(message[2] , receiver_packet[i].second_data, receiver_packet[i].second_datasize);
+                        temp_size_array[2] = receiver_packet[i].second_datasize;
                         check_received[2] = 1;
                         //continue;
                     }
                 }          
         }   
-        else if(receiver_packet[i].first_chunk_number == 4 || receiver_packet[i].second_chunk_number == 4)
+        if(receiver_packet[i].first_chunk_number == 4 || receiver_packet[i].second_chunk_number == 4)
         {
                // printf("chunk  number 4 found \n");
                 //printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[3]);
-                if((receiver_packet[i].first_chunk_number == 4) && (receiver_packet[i].first_datasize == size_array[3]))
+                if((receiver_packet[i].first_chunk_number == 4) && (receiver_packet[i].first_datasize != 0))
                 {
                    // printf("size is %d::%d:%d\n", receiver_packet[i].first_datasize, size_array[3], check_received[3]);
                     if(check_received[3] != 1)
                     {   printf("chunk  number 4 receiving\n");
-                        memcpy(message[3] , receiver_packet[i].first_data, size_array[3]);
+                        message[3] = calloc(receiver_packet[i].first_datasize , sizeof(char));
+                        memcpy(message[3] , receiver_packet[i].first_data, receiver_packet[i].first_datasize );
+                        temp_size_array[3] = receiver_packet[i].first_datasize;
                         //printf("data is %s\n", message[3]);
                         check_received[3] = 1;
                         //continue;
                     }
                 }
                // printf("size is %d::%d\n", receiver_packet[i].second_datasize, size_array[3]);
-                if((receiver_packet[i].second_chunk_number == 4) && (receiver_packet[i].second_datasize == size_array[3]))
-                {   printf("chunk  number 4 receiving\n");
+                if((receiver_packet[i].second_chunk_number == 4) && (receiver_packet[i].second_datasize != 0))
+                {   
                     if(check_received[3] != 1)
-                    {   
-                        memcpy(message[3] , receiver_packet[i].second_data, size_array[3]);
+                    {   printf("chunk  number 4 receiving\n");
+                        message[3] = calloc(receiver_packet[i].second_datasize , sizeof(char));
+                        memcpy(message[3] , receiver_packet[i].second_data, receiver_packet[i].second_datasize);
+                        temp_size_array[3] = receiver_packet[i].second_datasize;
                         //("data is %s\n", message[3]);
                         check_received[3] = 1;
                        // continue;
@@ -604,10 +604,10 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
     fd_write = open( filename_result, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
     for(i = 0; i < 4; i++)
     {
-        //printf(":::%s:::\n", message[i]);
+        printf(":::%s:::\n", message[i]);
         printf("size of message is %ld\n", sizeof(message[i]));
-        char * decrypted = encryptdecrypt(message[i], size_array[i]);
-        write(fd_write, decrypted, size_array[i]);
+        char * decrypted = encryptdecrypt(message[i], temp_size_array[i]);
+        write(fd_write, decrypted, temp_size_array[i]);
     } 
     for( i = 0; i< 4; i++)
     {
@@ -890,9 +890,6 @@ int main(int argc , char *argv[])
  
             printf("Obtaining file %s from the server\n", sender_packet.filename);
             sender_packet.valid = 1;
-            md5_mod = check_md5sum(sender_packet.filename);
-            printf("md5 mod result is %d\n", md5_mod);
-            get_file_server_map(md5_mod);
             get_file(sender_packet.filename, server, configstruct); //Get file from the server
         }
         
@@ -944,12 +941,61 @@ int main(int argc , char *argv[])
                     printf("Server %d says : %s", i,receiver_packet[i].error_data);
                 }
                 else
-                   printf("Credentials Matched");
+                   printf("Credentials Matched\n");
                 
             }
          
         }
-       
+        else if (strcmp(sender_packet.command , "exit") == 0)
+        {
+             unsigned int remote_length = sizeof(server);
+             strcpy(sender_packet.username, configstruct.username[0]);
+             strcpy(sender_packet.password, configstruct.password[0]);
+              int i = 0;
+              for(i = 0; i< 4; i++)
+              {
+	          if( sendto(sock[i] , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&server , remote_length) < 0)
+                  {
+                      printf("Send failed to server %d", i);
+                      //return 1;
+                  } 
+                  receiver_packet[i] = EmptyStruct;
+                  if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) 
+                  {
+                    perror("receive failed : ");
+                  }
+                  if(receiver_packet[i].valid == -1)
+                  {
+                    printf("Server %d says : %s", i,receiver_packet[i].error_data);
+                  }
+                  else
+                     printf("Credentials Matched\n");
+             }
+             for( i = 0; i < 4; i++)
+             {     receiver_packet[i] = EmptyStruct;
+                  if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) //receive the list of files from server
+                  {
+                      perror("receive failed : ");
+                  }
+             }
+              for(i = 0; i < 4 ;i++)
+              {
+                  if((strcmp(receiver_packet[i].command ,"exit")) == 0) //If ack is correct then client displays message that server exited
+                  {
+                     
+                     printf("Server %d exited gracefully\n", i);
+                     
+                  }
+                  else
+                     printf("Server could not exit\n");
+                     break;
+              }
+              if(i == 4)
+              {
+                  printf("Client also exiting\n");
+                  exit(0);
+              }              
+        }
     
      }
      

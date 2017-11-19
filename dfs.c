@@ -309,9 +309,7 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
      char filename1[100];
      char filename2[100];
      int first_file = 0; int second_file = 0;
-  
      
-    
 
      for( i = 1; i <= 4; i++)
      {
@@ -526,6 +524,16 @@ int main(int argc , char *argv[])
                     {
                         char fullpath[100];
                         check_and_create_directory(directory, receiver_packet, fullpath);
+                    }
+                    else if(strcmp(receiver_packet.command, "exit") == 0) //If command is exit, server exits
+                    {
+                        
+                        strcpy(sender_packet.command, "exit");
+                        if(sendto(connfd, &sender_packet, sizeof(sender_packet), 0, (struct sockaddr *)&cliaddr, remote_length) == -1) //send to client that server exited
+                            perror("sendto:");
+                        printf("Server is exiting\n");
+                        close(connfd);
+                        exit(-1);
                      }
                  }
                 receiver_packet = EmptyStruct;

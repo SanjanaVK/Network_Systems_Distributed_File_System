@@ -27,6 +27,7 @@ struct packet_t{
     char second_data[MAXBUF];
     char command[50];
     char filename[50];
+    char subfolder[50];
     int valid;
     char error_data[100];
     char username[100];
@@ -147,11 +148,31 @@ void check_and_create_directory(char * directory, struct packet_t receiver_packe
     strcat(fullpath, receiver_packet.username);
     strcat(fullpath,"/");
     struct stat st = {0};
+
     printf("full path is %s\n", fullpath);
     if (stat(fullpath, &st) == -1) 
     {
         mkdir(fullpath, 0700);
         printf("full path is %s\n", fullpath);
+    }
+    if(strcmp(receiver_packet.command,"MKDIR") == 0 )
+    {
+        strcat(fullpath, receiver_packet.subfolder);
+        if (stat(fullpath, &st) == -1) 
+        {
+            mkdir(fullpath, 0700);
+            printf("full path in MKDIR in %s\n", fullpath);
+         }
+    }
+    if((strcmp(receiver_packet.command, "MKDIR") != 0 ) && strlen(receiver_packet.subfolder) != 0)
+    {
+        strcat(fullpath, receiver_packet.subfolder);
+        if (stat(fullpath, &st) == -1)
+        {
+            printf("subfolder %s not present\n", receiver_packet.subfolder);
+            return;
+         } 
+        
     }
     return;
     
@@ -417,7 +438,7 @@ int main(int argc , char *argv[])
             int result=0;
             int fifo_index = 0;
             int other_request = 0;
-           
+            receiver_packet = EmptyStruct;
             while (recvfrom(connfd, &receiver_packet, sizeof(receiver_packet),0,(struct sockaddr *)&cliaddr , &remote_length) > 0) 
             {
                 printf("Received command: %s\n",receiver_packet.command);
@@ -450,6 +471,12 @@ int main(int argc , char *argv[])
                 {
                     //get_list_of_files(remote, remote_length, sockfd); //If command is ls then get list of all files in server directory
                 }
+                else if(strcmp(receiver_packet.command, "MKDIR") == 0)
+                {
+                    char fullpath[100];
+                    check_and_create_directory(directory, receiver_packet, fullpath);
+                }
+                receiver_packet = EmptyStruct;
             }
 	        //close(connfd);
                 //printf("Closing socket.........\n");

@@ -403,6 +403,18 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
             puts("Send failed");
             return 1;
          } 
+         receiver_packet[i] = EmptyStruct;
+         if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) //receive the list of files from server
+         {
+             perror("receive failed : ");
+         }
+         if(receiver_packet[i].valid == -1)
+         {
+             printf("Server %d says : %s", i, receiver_packet[i].error_data);
+             return;
+         }
+         else
+             printf("Credentials Matched");
         
     }
     for( i = 0; i< 4; i++)
@@ -454,10 +466,24 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
             printf("Send failed to server %d", i);
             //return 1;
          } 
+         receiver_packet[i] = EmptyStruct;
+         if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) //receive the list of files from server
+         {
+             perror("receive failed : ");
+         }
+         if(receiver_packet[i].valid == -1)
+         {
+             printf("Server %d  says : %s", i,receiver_packet[i].error_data);
+             return;
+         }
+         else
+             printf("Credentials Matched");
     }
+    
     
     for(i = 0; i < 4; i++)
     {
+        receiver_packet[i] = EmptyStruct;
         if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]),0,(struct sockaddr *)&server , &remote_length) <= 0) 
         {
             printf("Receive failed from server %d", i);
@@ -604,6 +630,18 @@ void get_list_of_files(struct sockaddr_in server, struct config configstruct)
             printf("Send failed to server %d", i);
             //return 1;
          } 
+         receiver_packet[i] = EmptyStruct;
+         if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) //receive the list of files from server
+         {
+             perror("receive failed : ");
+         }
+         if(receiver_packet[i].valid == -1)
+         {
+             printf("Server %d says : %s", i,receiver_packet[i].error_data);
+             return;
+         }
+         else
+             printf("Credentials Matched");
     }
     char *server_list_files[4];
     for(i=0; i<4; i++)
@@ -616,8 +654,10 @@ void get_list_of_files(struct sockaddr_in server, struct config configstruct)
         filenames[i] = calloc(50 , sizeof(char));
     }
     int number_of_files = 0;
+    
     for(i = 0; i < 4; i++)
     {
+        receiver_packet[i] = EmptyStruct;
         recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length); //receive the list of files from server
         char *token = strtok(receiver_packet[i].first_data, "#");
         while (token != NULL)
@@ -746,9 +786,14 @@ int main(int argc , char *argv[])
     char user_input[100];
     char *token;
     
-    configstruct = get_conf_parameters(CONF_FILENAME);
-
-    
+    //Check for arguments. Should provide port number          
+    if (argc != 2)
+    {
+        printf ("USAGE:  <conf>\n");
+	exit(1);
+    }
+    configstruct = get_conf_parameters(argv[1]);
+   
 
     //Create socket
     for ( i = 0 ; i<4; i++)
@@ -889,8 +934,20 @@ int main(int argc , char *argv[])
                     printf("Send failed to server %d", i);
                     //return 1;
                 } 
+                receiver_packet[i] = EmptyStruct;
+                if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) //receive the list of files from server
+                {
+                    perror("receive failed : ");
+                }
+                if(receiver_packet[i].valid == -1)
+                {
+                    printf("Server %d says : %s", i,receiver_packet[i].error_data);
+                }
+                else
+                   printf("Credentials Matched");
+                
             }
-          //  get_list_of_files(remote, remote_length, sockfd); //List the files in the server directory
+         
         }
        
     

@@ -241,20 +241,6 @@ void get_list_of_files(char * directory, int connfd, struct sockaddr_in cliaddr)
 }
 void put_file(struct config configstruct, char * directory)
 {
-    if(check_cred_match(configstruct, receiver_packet) == 0)
-    {
-         printf("credentials do not match\n");
-                    /*sender_packet.valid = -1;
-                    strcpy(sender_packet.error, "Invalid Username or Password");
-                    if( sendto(connfd , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&cliaddr , remote_length) < 0)
-                    {
-                        puts("Send failed");
-                        return 1;
-                    } */
-                    
-          return;
-     }
-
      char fullpath[100];
      char first_chunk[MAXBUF];
      char second_chunk[MAXBUF];
@@ -501,37 +487,47 @@ int main(int argc , char *argv[])
                 if(check_cred_match(configstruct, receiver_packet) == 0)
                 {
                     printf("credentials do not match\n");
-                    /*sender_packet.valid = -1;
-                    strcpy(sender_packet.error, "Invalid Username or Password");
+                    sender_packet.valid = -1;
+                    strcpy(sender_packet.error_data, "Invalid Username or Password");
                     if( sendto(connfd , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&cliaddr , remote_length) < 0)
                     {
                         puts("Send failed");
                         return 1;
-                    } */
+                    } 
                     
-                    return;
                 }
-                printf("Credentials match\n"); 
+                else
+                {
+                    sender_packet.valid = 0;
+                    strcpy(sender_packet.error_data, "Success");
+                    if( sendto(connfd , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&cliaddr , remote_length) < 0)
+                    {
+                        puts("Send failed");
+                        return 1;
+                    } 
+                    
+                    printf("Credentials match\n"); 
         
-                if(strcmp(receiver_packet.command, "put") == 0)
-                {
-                    put_file(configstruct, directory); //If command is put, then client puts file into server
-                }
+                    if(strcmp(receiver_packet.command, "put") == 0)
+                    {
+                        put_file(configstruct, directory); //If command is put, then client puts file into server
+                    }
            
-                else if(strcmp(receiver_packet.command, "get") == 0)
-                {
-                    get_file(directory, connfd, cliaddr); //If command is get, then client gets a file from server
-                }
+                    else if(strcmp(receiver_packet.command, "get") == 0)
+                    {
+                        get_file(directory, connfd, cliaddr); //If command is get, then client gets a file from server
+                     }
                
-                else if(strcmp(receiver_packet.command, "LIST") == 0)
-                {
-                    get_list_of_files(directory,connfd,cliaddr); //If command is ls then get list of all files in server directory
-                }
-                else if(strcmp(receiver_packet.command, "MKDIR") == 0)
-                {
-                    char fullpath[100];
-                    check_and_create_directory(directory, receiver_packet, fullpath);
-                }
+                    else if(strcmp(receiver_packet.command, "LIST") == 0)
+                    {
+                        get_list_of_files(directory,connfd,cliaddr); //If command is ls then get list of all files in server directory
+                    }
+                    else if(strcmp(receiver_packet.command, "MKDIR") == 0)
+                    {
+                        char fullpath[100];
+                        check_and_create_directory(directory, receiver_packet, fullpath);
+                     }
+                 }
                 receiver_packet = EmptyStruct;
             }
 	        //close(connfd);

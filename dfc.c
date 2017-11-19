@@ -466,11 +466,6 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
     
     for(i = 0; i< 4; i++)
     {
-         sender_packet.first_chunk_number = serverstruct[i].first_file;
-         sender_packet.first_datasize = size_array[serverstruct[i].first_file - 1];
-     
-         sender_packet.second_chunk_number = serverstruct[i].second_file;
-         sender_packet.second_datasize = size_array[serverstruct[i].second_file - 1];
         
          printf("size of sender_packet is %d\n", sizeof(sender_packet));
          printf("sender filename is %s\n", sender_packet.filename);
@@ -501,14 +496,14 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         if(receiver_packet[i].first_chunk_number == 1 || receiver_packet[i].second_chunk_number == 1)
         {
             printf("chunk  number 1 found \n");
-            printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
+            //printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
                 if((receiver_packet[i].first_chunk_number == 1 )&& (receiver_packet[i].first_datasize == size_array[0]))
                 {
                     printf("chunk  number 1 confirmed \n");
                     if(check_received[0] != 1)
                     {   
                         strcpy(message[0] , receiver_packet[i].first_data);
-                        printf("data is %s\n", message[0]);
+                        //printf("data is %s\n", message[0]);
                         check_received[0] = 1;
                         //continue;
                     }
@@ -525,8 +520,8 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         }   
         if(receiver_packet[i].first_chunk_number == 2 || receiver_packet[i].second_chunk_number == 2)
         {
-                printf("chunk  number 1 found \n");
-            printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
+                printf("chunk  number 2 found \n");
+            //printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[0]);
                 if((receiver_packet[i].first_chunk_number == 2) && (receiver_packet[i].first_datasize == size_array[1]))
                 {
                     if(check_received[1] != 1)
@@ -548,6 +543,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         }   
         if(receiver_packet[i].first_chunk_number == 3 || receiver_packet[i].second_chunk_number == 3)
         {
+            printf("chunk  number 3 found \n");
                 if((receiver_packet[i].first_chunk_number == 3) && (receiver_packet[i].first_datasize == size_array[2]))
                 {
                     if(check_received[2] != 1)
@@ -570,25 +566,25 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         else if(receiver_packet[i].first_chunk_number == 4 || receiver_packet[i].second_chunk_number == 4)
         {
                 printf("chunk  number 4 found \n");
-                printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[3]);
+                //printf("size is %d::%d\n", receiver_packet[i].first_datasize, size_array[3]);
                 if((receiver_packet[i].first_chunk_number == 4) && (receiver_packet[i].first_datasize == size_array[3]))
                 {
-                    printf("size is %d::%d:%d\n", receiver_packet[i].first_datasize, size_array[3], check_received[3]);
+                   // printf("size is %d::%d:%d\n", receiver_packet[i].first_datasize, size_array[3], check_received[3]);
                     if(check_received[3] != 1)
                     {   
                         strcpy(message[3] , receiver_packet[i].first_data);
-                        printf("data is %s\n", message[3]);
+                        //printf("data is %s\n", message[3]);
                         check_received[3] = 1;
                         //continue;
                     }
                 }
-                printf("size is %d::%d\n", receiver_packet[i].second_datasize, size_array[3]);
+               // printf("size is %d::%d\n", receiver_packet[i].second_datasize, size_array[3]);
                 if((receiver_packet[i].second_chunk_number == 4) && (receiver_packet[i].second_datasize == size_array[3]))
                 {
                     if(check_received[3] != 1)
                     {   
                         strcpy(message[3] , receiver_packet[i].second_data);
-                        printf("data is %s\n", message[3]);
+                        //("data is %s\n", message[3]);
                         check_received[3] = 1;
                        // continue;
                     }
@@ -603,6 +599,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
     for(i = 0; i < 4; i++)
     {
         printf(":::%s:::\n", message[i]);
+        printf("size of message is %ld\n", strlen(message[i]));
         write(fd_write, message[i] , size_array[i]);
     }  
     

@@ -146,6 +146,23 @@ void check_and_create_directory(char * directory, struct packet_t receiver_packe
     
 }
 
+/*This function calculates the filesize and calculates number of packets*/
+unsigned long calculate_filesize(char * filename)
+{
+    FILE *temp_fp = fopen(filename, "r");
+    if (temp_fp == NULL)
+    {
+        perror("File not opened : ");
+        return -1;
+    }
+    fseek(temp_fp, 0L, SEEK_END);
+    unsigned long temp_filesize = ftell(temp_fp); //get file size
+    printf("File size of the file to be transmitted is %ld\n", temp_filesize);
+    fseek(temp_fp, 0L, SEEK_SET);  
+    fclose(temp_fp);
+    return temp_filesize; //return number of packets
+   
+}
 void put_file(struct config configstruct, char * directory)
 {
     if(check_cred_match(configstruct, receiver_packet) == 0)
@@ -163,8 +180,8 @@ void put_file(struct config configstruct, char * directory)
      }
 
      char fullpath[100];
-     char first_chunk[10000];
-     char second_chunk[10000];
+     char first_chunk[MAXBUF];
+     char second_chunk[MAXBUF];
      printf("filename is %s\n", receiver_packet.filename);
      bzero(fullpath, sizeof(fullpath));
      check_and_create_directory(directory, receiver_packet, fullpath);
@@ -221,52 +238,74 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
      int fd_read1, fd_read2;
      char filename1[100];
      char filename2[100];
-     strcpy(filename1, fullpath);
-     strcat(filename1, receiver_packet.filename);
-     strcat(filename1, ".");
-     char chunk_string[10];
-     bzero(chunk_string, sizeof(chunk_string));
-     sprintf( chunk_string, "%d", receiver_packet.first_chunk_number);
-     strcat(filename1, chunk_string);               
-     printf("filename is %s\n", filename1);
-
-     strcpy(filename2, fullpath);
-     strcat(filename2, receiver_packet.filename);
-     strcat(filename2, ".");
-     bzero(chunk_string, sizeof(chunk_string));
-     sprintf( chunk_string, "%d", receiver_packet.second_chunk_number);
-     strcat(filename2, chunk_string);
-                
-     printf("filename is %s\n", filename2);
+     int first_file = 0; int second_file = 0;
+  
+     
     
-     fd_read1 = open(filename1 , O_RDONLY); //file open with read only option
-     if(fd_read1 == -1)
+
+     for( i = 1; i <= 4; i++)
      {
-        perror("File not opened: ");
-        return -1;
+
+        char chunk_string[10];
+        bzero(chunk_string, sizeof(chunk_string));
+        sprintf( chunk_string, "%d", i);
+        strcpy(filename1, fullpath);
+        strcat(filename1, receiver_packet.filename);
+        strcat(filename1, ".");
+ 
+        strcat(filename1, chunk_string);               
+        printf("filename is %s\n", filename1);
+        
+        fd_read1 = open(filename1 , O_RDONLY); //file open with read only option
+        if(fd_read1 != -1)
+        {
+            printf("Found file %s\n",filename1);
+            first_file = i;
+            break;
+        }
+        //return -1;
      }
 
-    fd_read2 = open(filename2 , O_RDONLY); //file open with read only option
-    if(fd_read2 == -1)
-    {
-        perror("File not opened: ");
-        return -1;
-    }
+     for( i = first_file+1 ; i <= 4; i++)
+     {
+
+        char chunk_string[10];
+        bzero(chunk_string, sizeof(chunk_string));
+        sprintf( chunk_string, "%d", i);
+        strcpy(filename2, fullpath);
+        strcat(filename2, receiver_packet.filename);
+        strcat(filename2, ".");
+        strcat(filename2, chunk_string);               
+        printf("filename is %s\n", filename2);
+        fd_read2 = open(filename2, O_RDONLY); //file open with read only option
+        if(fd_read2 != -1)
+        {
+            printf("Found file %s\n",filename2);
+            second_file = i;
+            break;
+        }
+        //return -1;
+     }
+
+   
     i = 0;
+    unsigned long size1, size2;
+    size1 = calculate_filesize(filename1);
+    size2 = calculate_filesize(filename2);
     //keep communicating with server
     printf("Sending files : \n");
     i = 0; 
     char buf[100];
     unsigned long nbytes;
     char *message[2];
-    message[0] = calloc(receiver_packet.first_datasize , sizeof(char));
-    message[1] = calloc(receiver_packet.second_datasize , sizeof(char));
+    message[0] = calloc(size1 , sizeof(char));
+    message[1] = calloc(size2 , sizeof(char));
     
-    while(nbytes = read(fd_read1, message[0], receiver_packet.first_datasize)) //read MAXBUFSIZE from the file
+    while(nbytes = read(fd_read1, message[0], size1)) //read MAXBUFSIZE from the file
     {
         printf("%s\n",message[0]);
     }
-    while(nbytes = read(fd_read2, message[1], receiver_packet.second_datasize)) //read MAXBUFSIZE from the file
+    while(nbytes = read(fd_read2, message[1], size2)) //read MAXBUFSIZE from the file
     {
         printf("%s\n",message[1]);
     }
@@ -274,14 +313,14 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
     sender_packet = EmptyStruct;
        
     strcpy(sender_packet.filename , receiver_packet.filename);  
-    sender_packet.first_chunk_number = receiver_packet.first_chunk_number;
-    sender_packet.first_datasize = receiver_packet.first_datasize;
+    sender_packet.first_chunk_number = first_file;
+    sender_packet.first_datasize = size1;
    
     bzero(sender_packet.first_data, sizeof(sender_packet.first_data));
     strcpy(sender_packet.first_data , message[0]);
 
-    sender_packet.second_chunk_number = receiver_packet.second_chunk_number;
-    sender_packet.second_datasize = receiver_packet.second_datasize;
+    sender_packet.second_chunk_number = second_file;
+    sender_packet.second_datasize = size2;
        
     bzero(sender_packet.second_data, sizeof(sender_packet.second_data));
     strcpy(sender_packet.second_data , message[1]);

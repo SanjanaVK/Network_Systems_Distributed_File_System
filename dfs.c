@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/sendfile.h>
+#include <memory.h>
+#include <dirent.h>
 
 #define MAXLINE 10 * 4096 /*max text line length*/
 #define LISTENQ 8 /*maximum number of client connections*/
@@ -121,6 +123,7 @@ struct config get_conf_parameters(char *filename) //parse configuration file to 
     return configstruct;
 }
 
+
 int check_cred_match(struct config configstruct, struct packet_t receiver_packet)
 {
     int i = 0;
@@ -162,7 +165,7 @@ void check_and_create_directory(char * directory, struct packet_t receiver_packe
         {
             mkdir(fullpath, 0700);
             printf("full path in MKDIR in %s\n", fullpath);
-         }
+        }
     }
     if((strcmp(receiver_packet.command, "MKDIR") != 0 ) && strlen(receiver_packet.subfolder) != 0)
     {
@@ -171,7 +174,7 @@ void check_and_create_directory(char * directory, struct packet_t receiver_packe
         {
             printf("subfolder %s not present\n", receiver_packet.subfolder);
             return;
-         } 
+        } 
         
     }
     return;
@@ -194,6 +197,47 @@ unsigned long calculate_filesize(char * filename)
     fclose(temp_fp);
     return temp_filesize; //return number of packets
    
+}
+
+/*This function gets list of all files from server*/ 
+void get_list_of_files(char * directory, int connfd, struct sockaddr_in cliaddr)
+{
+    DIR *d;
+    struct dirent *dir;
+    int file_count  = 0;
+    unsigned int remote_length = sizeof(cliaddr);
+    char fullpath[100];
+    bzero(fullpath, sizeof(fullpath));
+    check_and_create_directory(directory, receiver_packet, fullpath);
+    if ((d = opendir(fullpath)) == NULL)
+    {
+        perror("Error: Could not open directory :");
+    }
+    bzero(sender_packet.first_data, sizeof(sender_packet));
+    if(d)
+    {
+        if( (dir = readdir(d)) != NULL) //read current directory
+        {
+            strcpy(sender_packet.first_data,dir->d_name);
+            file_count++;
+            while( (dir =readdir(d)) != NULL)
+            {
+                printf("%s\n", dir->d_name);
+                //get a string of all filenames separated by "#"
+                strcat(sender_packet.first_data, "#");
+                strcat(sender_packet.first_data,dir->d_name);
+                file_count++;
+            }  
+            sender_packet.first_datasize = file_count;
+            closedir(d);
+            printf("Number files in server directory is %d\n", file_count);
+            if(sendto(connfd, &sender_packet, sizeof(sender_packet), 0, (struct sockaddr *)&cliaddr, remote_length) == -1) //send list of files to client
+                perror("sendto:");
+        } 
+        else
+            perror("Error: Reading directory: ");
+    }
+         
 }
 void put_file(struct config configstruct, char * directory)
 {
@@ -258,7 +302,9 @@ void put_file(struct config configstruct, char * directory)
     
      strcpy(receiver_packet.second_data, decrypted);
      puts(receiver_packet.second_data);
-     write(fd_write2, receiver_packet.second_data , receiver_packet.second_datasize);    
+     write(fd_write2, receiver_packet.second_data , receiver_packet.second_datasize);  
+     close(fd_write1);
+     close(fd_write2);  
 }
 
 int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
@@ -374,6 +420,12 @@ int get_file(char * directory, int connfd, struct sockaddr_in cliaddr)
          puts("Send failed");
          return 1;
     } 
+    for( i = 0; i< 2; i++)
+    {
+        free(message[i]);
+    } 
+    close(fd_read1);
+    close(fd_read2);
     return 0;
             
 }
@@ -467,9 +519,9 @@ int main(int argc , char *argv[])
                     get_file(directory, connfd, cliaddr); //If command is get, then client gets a file from server
                 }
                
-                else if(strcmp(receiver_packet.command, "ls") == 0)
+                else if(strcmp(receiver_packet.command, "LIST") == 0)
                 {
-                    //get_list_of_files(remote, remote_length, sockfd); //If command is ls then get list of all files in server directory
+                    get_list_of_files(directory,connfd,cliaddr); //If command is ls then get list of all files in server directory
                 }
                 else if(strcmp(receiver_packet.command, "MKDIR") == 0)
                 {
@@ -487,6 +539,8 @@ int main(int argc , char *argv[])
         close(connfd);
         printf("socket closed\n");
     }
+    free(configstruct.username);
+    free(configstruct.password);
     
 }
 

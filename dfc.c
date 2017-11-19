@@ -369,38 +369,9 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
         i++;
     }
     
-    int fd_write1 = open("chunk1.1", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[0] , size_array[0]);
-    close(fd_write1);
-    fd_write1 = open("chunk2.2", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[1] , size_array[1]);
-     close(fd_write1);
-     fd_write1 = open("chunk3.3", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[2] , size_array[2]);
-    close(fd_write1);
-    fd_write1 = open("chunk4.4", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[3] , size_array[3]);
-    close(fd_write1);
-   int fd_write4 = open("total.png", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-   write(fd_write4, message[0] , size_array[0]);
-   write(fd_write4, message[1] , size_array[1]);
-   write(fd_write4, message[2] , size_array[2]);
-   write(fd_write4, message[3] , size_array[3]);
-   close(fd_write4);
     
     for(i = 0; i< 4; i++)
     {
-    	//char * encrypted = encryptdecrypt(message[i], nbytes); //encrypt file data packet
-                 
-       // char * decrypted = encryptdecrypt(encrypted, nbytes); //decrypt file packet
-       
-       // write(fd_write, decrypted, nbytes);
-         
-        //Send some data
-       
-       	// printf("\nsending first chunk\n %s\n", message[serverstruct[i].first_file - 1]);
-         
-         //sender_packet = EmptyStruct;
          strcpy(sender_packet.username, configstruct->username[0]);
          strcpy(sender_packet.password, configstruct->password[0]);
    
@@ -433,30 +404,11 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
             return 1;
          } 
         
-
-        //printf("\n sending second chunk\n %s\n", message[serverstruct[i].second_file - 1]);
-         
-         //sender_packet.chunk_number = '\0';
-	 
-         
-       //Send some data
-        /*if( send(sock[i] , &sender_packet, sizeof(sender_packet) , 0) < 0)
-        {
-            puts("Send failed");
-            return 1;
-        }*/
-
-         
-        //Receive a reply from the server
-        /*if( recv(sock , server_reply , 2000 , 0) < 0)
-        {
-            puts("recv failed");
-            break;
-        }
-         
-        puts("Server reply :");
-        puts(server_reply);*/
     }
+    for( i = 0; i< 4; i++)
+    {
+        free(message[i]);
+    } 
     close(fd);
 
 }
@@ -630,20 +582,41 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         printf("size of message is %ld\n", sizeof(message[i]));
         char * decrypted = encryptdecrypt(message[i], size_array[i]);
         write(fd_write, decrypted, size_array[i]);
-    }  
-    int fd_write1 = open("chunk1", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[0] , size_array[0]);
-    close(fd_write1);
-    fd_write1 = open("chunk2", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[1] , size_array[1]);
-     close(fd_write1);
-     fd_write1 = open("chunk3", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[2] , size_array[2]);
-    close(fd_write1);
-    fd_write1 = open("chunk4", O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
-    write(fd_write1, message[3] , size_array[3]);
-    close(fd_write1);
+    } 
+    for( i = 0; i< 4; i++)
+    {
+        free(message[i]);
+    } 
     close(fd_write);    
+}
+
+void get_list_of_files(struct sockaddr_in server, struct config configstruct)
+{
+    int i = 0;
+    unsigned int remote_length = sizeof(server);
+   
+    strcpy(sender_packet.username, configstruct.username[0]);
+    strcpy(sender_packet.password, configstruct.password[0]);
+    for(i = 0; i< 4; i++)
+    {
+	 if( sendto(sock[i] , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&server , remote_length) < 0)
+         {
+            printf("Send failed to server %d", i);
+            //return 1;
+         } 
+    }
+    
+    for(i = 0; i < 4; i++)
+    {
+        recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length); //receive the list of files from server
+        char *token = strtok(receiver_packet[i].first_data, "#");
+        while (token != NULL)
+        {
+            printf("%s\n", token); //display each filename
+            token = strtok(NULL, "#");
+        }
+        printf("Number of files is %d\n", receiver_packet[i].first_datasize);
+    }
 }
 
 int main(int argc , char *argv[])
@@ -772,23 +745,15 @@ int main(int argc , char *argv[])
               //  continue;
         }
        
-        else if (strcmp(sender_packet.command , "ls") == 0)
+        else if (strcmp(sender_packet.command , "LIST") == 0)
         {
-            if(strcmp(sender_packet.filename, "\0") != 0)
-            {
-                printf("Did you mean <ls>?, try again\n");
-                continue;
-            }
+            
+            get_list_of_files(server,configstruct);
             sender_packet.valid = 1;
           //  get_list_of_files(remote, remote_length, sockfd); //List the files in the server directory
         }
         else if (strcmp(sender_packet.command , "MKDIR") == 0)
         {
-            if(strcmp(sender_packet.filename, "\0") != 0)
-            {
-                printf("Did you mean <ls>?, try again\n");
-                continue;
-            }
             unsigned int remote_length = sizeof(server);
             sender_packet.valid = 1;
             strcpy(sender_packet.username, configstruct.username[0]);
@@ -810,5 +775,7 @@ int main(int argc , char *argv[])
      
     for(i = 0 ; i< 4; i++)
         close(sock[i]);
+    free(configstruct.username);
+    free(configstruct.password);
     return 0;
 }

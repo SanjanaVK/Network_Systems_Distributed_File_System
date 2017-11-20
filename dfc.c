@@ -13,6 +13,8 @@
 #include <sys/sendfile.h>
 #include <arpa/inet.h>
 #include <openssl/md5.h>
+#include <errno.h>
+#include <sys/signal.h>
 
 #define MAXBUF 10 * 4096
 #define CONF_FILENAME "dfc.conf"
@@ -20,6 +22,7 @@
 
 int sock[4];
 static const struct packet_t EmptyStruct; 
+
 
 struct config //ws.conf parsed map
 {
@@ -329,7 +332,7 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
     int size_array[4];
     int fd;
     int i;
-    
+    signal(SIGPIPE, SIG_IGN);
     printf("rem size is %d\n", rem_size);
     unsigned long temp_size= filesize/4;
     for(i= 0 ; i< 4; i++)
@@ -600,7 +603,6 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
     }
     char filename_result[100];
     strcpy(filename_result, receiver_packet[0].filename);
-    strcat(filename_result,".result");
     fd_write = open( filename_result, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
     for(i = 0; i < 4; i++)
     {
@@ -777,6 +779,7 @@ void get_list_of_files(struct sockaddr_in server, struct config configstruct)
 int main(int argc , char *argv[])
 {
    
+    signal(SIGPIPE, SIG_IGN);
     struct config configstruct;
     struct sockaddr_in server;
     char *message[4] , server_reply[2000];
@@ -804,19 +807,122 @@ int main(int argc , char *argv[])
             printf("Could not create socket");
         }
         puts("Socket created");
-     
+        //int conn_result = 0;
         server.sin_addr.s_addr = inet_addr("127.0.0.1");
         server.sin_family = AF_INET;
         port_int[i] = atoi(configstruct.server_port[i]);
         server.sin_port = htons( port_int[i] );
+
+        /*TIMEVAL Timeout;
+        Timeout.tv_sec = 1;
+        Timeout.tv_usec = 0;
+        unsigned long iMode = 1;
+        int iResult = ioctlsocket(sock[i], FIONBIO, &iMode);
+        if (iResult != NO_ERROR)
+        {	
+            printf("ioctlsocket failed with error: %ld\n", iResult);
+        } 
+	    
+        if(connect(sock[i] , (struct sockaddr *)&server , sizeof(server))==false)
+        {	
+          return false;
+        }	
  
-        //Connect to remote server
-        if (connect(sock[i] , (struct sockaddr *)&server , sizeof(server)) < 0)
+        // restart the socket mode
+        iMode = 0;
+        iResult = ioctlsocket(sock[i], FIONBIO, &iMode);
+        if (iResult != NO_ERROR)
+        {	
+            printf("ioctlsocket failed with error: %ld\n", iResult);
+        }
+ 
+        fd_set Write, Err;
+        FD_ZERO(&Write);
+        FD_ZERO(&Err);
+        FD_SET(sock[i], &Write);
+        FD_SET(sock[i], &Err);
+ 
+        // check if the socket is ready
+        select(0,NULL,&Write,&Err,&Timeout);			
+        if(FD_ISSET(sock[i], &Write)) 
+        {	
+            printf("Server %d Connected\n", (i+1));
+             //return true;
+        }*/
+        
+        long arg;
+        fd_set sdset;
+        struct timeval tv;
+        socklen_t len;
+        int conn_result = -1, valopt;
+ 
+        // Set socket to non-blocking
+        arg = fcntl(sock[i], F_GETFL, NULL);
+        arg |= O_NONBLOCK;
+        fcntl(sock[i], F_SETFL, arg);
+ 
+        // Connect with time limit
+        if ((conn_result = connect(sock[i] , (struct sockaddr *)&server , sizeof(server))) < 0) 
+        {
+            if (errno == EINPROGRESS)
+            {
+                tv.tv_sec = 1;
+                tv.tv_usec = 0;
+                FD_ZERO(&sdset);
+                FD_SET(sock[i], &sdset);
+                if (select(sock[i]+1, NULL, &sdset, NULL, &tv) > 0)
+                {
+                    len = sizeof(int);
+                    getsockopt(sock[i], SOL_SOCKET, SO_ERROR, (void*)(&valopt), &len);
+                    if (valopt) {
+                        fprintf(stderr, "connect() error %d - %s\n", valopt, strerror(valopt));
+                    }
+                    // connection established
+                    else 
+                    {
+                        conn_result = 0;
+                        printf("Server %d Connected\n", (i+1));
+                    }
+                }
+                else fprintf(stderr, "connect() timed out\n");
+            }
+            else fprintf(stderr, "connect() error %d - %s\n", errno, strerror(errno));
+        }
+ 
+        // Return socket to blocking mode 
+        arg = fcntl(sock[i], F_GETFL, NULL);
+        arg &= (~O_NONBLOCK);
+        fcntl(sock[i], F_SETFL, arg);
+ 
+ 
+        /*fd_set readset;
+        FD_ZERO(&readset);
+        FD_SET(sock[i], &readset); //set active socket to fd_set
+        struct timeval timeout = {1,0}; //Sent timeout to 1s
+       // fcntl(sock[i], F_SETFL, O_NONBLOCK);
+
+        /*if ((conn_result = connect(sock[i] , (struct sockaddr *)&server , sizeof(server))) == -1)
         {
             perror("connect failed. Error");
             //return 1;
         }
-        puts("Connected\n");
+        conn_result = select((sock[i])+1, &readset, NULL, NULL, &timeout);
+        if( conn_result == -1)
+        { 
+            printf("Error in select, try again");
+            exit(-1);
+        }  
+        else if( conn_result == 0)
+        {
+            printf("Time out, Server %d did not connect in 1s\n", (i+1)); //If client is inactive for 400ms, then it stops waiting for server to exit and goes back to display menu
+        }
+
+        else if (conn_result > 0 && FD_ISSET(sock[i], &readset))
+        {
+         //Connect to remote server
+         printf("Server %d Connected\n", (i+1));
+        }
+        fcntl(sock[i], F_SETFL, fcntl(sock[i], F_GETFL, 0) & ~O_NONBLOCK);*/
     }
 
     while(1)

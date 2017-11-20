@@ -13,9 +13,9 @@
 #include <memory.h>
 #include <dirent.h>
 
-#define MAXLINE 10 * 4096 /*max text line length*/
+#define MAXLINE 10 *4096 /*max text line length*/
 #define LISTENQ 8 /*maximum number of client connections*/
-#define MAXBUF 10 * 4096
+#define MAXBUF 10*4096
 #define FILENAME "dfs.conf" /*Configuration file*/
 
 static const struct packet_t EmptyStruct; 

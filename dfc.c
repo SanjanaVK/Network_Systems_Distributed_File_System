@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <sys/signal.h>
 
-#define MAXBUF 10 * 4096
+#define MAXBUF 10*4096
 #define CONF_FILENAME "dfc.conf"
 #define FILENAME "foo1.txt"
 
@@ -326,6 +326,11 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
 {
     char *message[4];
     unsigned long filesize = calculate_filesize(filename);
+    if(filesize > 163840)
+    {
+        printf("File size is big to handle. Try again with a smaller size\n");
+        return;
+    }
     printf("File size %ld\n", filesize);
     int rem_size = filesize % 4;
     int size_array[4];
@@ -434,7 +439,7 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
     int fd;
     int i;
     char *message[4];
-    
+     signal(SIGPIPE, SIG_IGN);
     unsigned int remote_length = sizeof(server);
     
 

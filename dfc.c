@@ -68,8 +68,7 @@ void display_menu()
    printf("\"get [file_name]\"       : The server transmits the requested file to the client \n");
    printf("\"put [file_name]\"       : The server receives transmitted file from the server and stores it locally \n");
    printf("\"MKDIR <subfolder/>\"    : The server makes a new directory under the username \n");
-   printf("\"ls\"                    : The server searches for all files in its directory and sends the list of all the files to the client \n");
-   printf("\"exit\"                  : The server exits gracefully \n");
+   printf("\"LIST\"                    : The server searches for all files in its directory and sends the list of all the files to the client \n");
 }
 
 /*This function provides data encryption and decryption*/
@@ -601,6 +600,14 @@ int get_file(char * filename, struct sockaddr_in server, struct config configstr
         }   
                 
     }
+    for(i=0 ; i<4; i++)
+    {
+        if(check_received[i] != 1)
+        {
+            printf("File is incomplete\n");
+            return;
+        }
+    }
     char filename_result[100];
     strcpy(filename_result, receiver_packet[0].filename);
     fd_write = open( filename_result, O_RDWR|O_CREAT|O_TRUNC|O_APPEND, 0666);
@@ -812,43 +819,6 @@ int main(int argc , char *argv[])
         server.sin_family = AF_INET;
         port_int[i] = atoi(configstruct.server_port[i]);
         server.sin_port = htons( port_int[i] );
-
-        /*TIMEVAL Timeout;
-        Timeout.tv_sec = 1;
-        Timeout.tv_usec = 0;
-        unsigned long iMode = 1;
-        int iResult = ioctlsocket(sock[i], FIONBIO, &iMode);
-        if (iResult != NO_ERROR)
-        {	
-            printf("ioctlsocket failed with error: %ld\n", iResult);
-        } 
-	    
-        if(connect(sock[i] , (struct sockaddr *)&server , sizeof(server))==false)
-        {	
-          return false;
-        }	
- 
-        // restart the socket mode
-        iMode = 0;
-        iResult = ioctlsocket(sock[i], FIONBIO, &iMode);
-        if (iResult != NO_ERROR)
-        {	
-            printf("ioctlsocket failed with error: %ld\n", iResult);
-        }
- 
-        fd_set Write, Err;
-        FD_ZERO(&Write);
-        FD_ZERO(&Err);
-        FD_SET(sock[i], &Write);
-        FD_SET(sock[i], &Err);
- 
-        // check if the socket is ready
-        select(0,NULL,&Write,&Err,&Timeout);			
-        if(FD_ISSET(sock[i], &Write)) 
-        {	
-            printf("Server %d Connected\n", (i+1));
-             //return true;
-        }*/
         
         long arg;
         fd_set sdset;
@@ -894,35 +864,6 @@ int main(int argc , char *argv[])
         arg &= (~O_NONBLOCK);
         fcntl(sock[i], F_SETFL, arg);
  
- 
-        /*fd_set readset;
-        FD_ZERO(&readset);
-        FD_SET(sock[i], &readset); //set active socket to fd_set
-        struct timeval timeout = {1,0}; //Sent timeout to 1s
-       // fcntl(sock[i], F_SETFL, O_NONBLOCK);
-
-        /*if ((conn_result = connect(sock[i] , (struct sockaddr *)&server , sizeof(server))) == -1)
-        {
-            perror("connect failed. Error");
-            //return 1;
-        }
-        conn_result = select((sock[i])+1, &readset, NULL, NULL, &timeout);
-        if( conn_result == -1)
-        { 
-            printf("Error in select, try again");
-            exit(-1);
-        }  
-        else if( conn_result == 0)
-        {
-            printf("Time out, Server %d did not connect in 1s\n", (i+1)); //If client is inactive for 400ms, then it stops waiting for server to exit and goes back to display menu
-        }
-
-        else if (conn_result > 0 && FD_ISSET(sock[i], &readset))
-        {
-         //Connect to remote server
-         printf("Server %d Connected\n", (i+1));
-        }
-        fcntl(sock[i], F_SETFL, fcntl(sock[i], F_GETFL, 0) & ~O_NONBLOCK);*/
     }
 
     while(1)
@@ -1052,57 +993,6 @@ int main(int argc , char *argv[])
             }
          
         }
-        else if (strcmp(sender_packet.command , "exit") == 0)
-        {
-             unsigned int remote_length = sizeof(server);
-             strcpy(sender_packet.username, configstruct.username[0]);
-             strcpy(sender_packet.password, configstruct.password[0]);
-              int i = 0;
-              for(i = 0; i< 4; i++)
-              {
-	          if( sendto(sock[i] , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&server , remote_length) < 0)
-                  {
-                      printf("Send failed to server %d", i);
-                      //return 1;
-                  } 
-                  receiver_packet[i] = EmptyStruct;
-                  if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) 
-                  {
-                    perror("receive failed : ");
-                  }
-                  if(receiver_packet[i].valid == -1)
-                  {
-                    printf("Server %d says : %s", i,receiver_packet[i].error_data);
-                  }
-                  else
-                     printf("Credentials Matched\n");
-             }
-             for( i = 0; i < 4; i++)
-             {     receiver_packet[i] = EmptyStruct;
-                  if(recvfrom(sock[i], &receiver_packet[i], sizeof(receiver_packet[i]), 0, (struct sockaddr *)&server, &remote_length) < 0) //receive the list of files from server
-                  {
-                      perror("receive failed : ");
-                  }
-             }
-              for(i = 0; i < 4 ;i++)
-              {
-                  if((strcmp(receiver_packet[i].command ,"exit")) == 0) //If ack is correct then client displays message that server exited
-                  {
-                     
-                     printf("Server %d exited gracefully\n", i);
-                     
-                  }
-                  else
-                     printf("Server could not exit\n");
-                     break;
-              }
-              if(i == 4)
-              {
-                  printf("Client also exiting\n");
-                  exit(0);
-              }              
-        }
-    
      }
      
     for(i = 0 ; i< 4; i++)

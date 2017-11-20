@@ -434,6 +434,7 @@ int put_file(char * filename, struct sockaddr_in server, struct config *configst
 
 }
 
+/*This function is for optimised get comand for traffic control*/
 int optimised_get_file(char * filename, struct sockaddr_in server, struct config configstruct)
 {    
     int fd;
@@ -441,7 +442,7 @@ int optimised_get_file(char * filename, struct sockaddr_in server, struct config
     char *message[4];
      signal(SIGPIPE, SIG_IGN);
     unsigned int remote_length = sizeof(server);
-    int temp_traffic[4];
+    volatile int temp_traffic[4];
     strcpy(sender_packet.username, configstruct.username[0]);
     strcpy(sender_packet.password, configstruct.password[0]);
     
@@ -481,6 +482,7 @@ int optimised_get_file(char * filename, struct sockaddr_in server, struct config
         for(j = 0 ; j< 4; j++)
         {
             sender_packet.traffic_files[j] = temp_traffic[j];
+            printf("send traffic file : %d : %d\n", j, sender_packet.traffic_files[j]);
         }
         if( sendto(sock[i] , &sender_packet, sizeof(sender_packet),0,(struct sockaddr *)&server , remote_length) < 0)
         {
@@ -497,6 +499,11 @@ int optimised_get_file(char * filename, struct sockaddr_in server, struct config
             temp_traffic[receiver_packet[i].first_chunk_number - 1] = 1;
         if((receiver_packet[i].second_chunk_number - 1) >= 0)
             temp_traffic[receiver_packet[i].second_chunk_number - 1] = 1;
+        for(j = 0 ; j< 4; j++)
+        {
+            
+            printf("send traffic file : %d :%d\n", j,temp_traffic[j]);
+        }
                
     }
     printf("\n\nFile received\n\n");
@@ -649,6 +656,7 @@ int optimised_get_file(char * filename, struct sockaddr_in server, struct config
     close(fd_write);  
 }
 
+/*This function is to get chunks form the server and write to a file*/
 int get_file(char * filename, struct sockaddr_in server, struct config configstruct)
 {
     
